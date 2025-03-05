@@ -24,7 +24,7 @@ async def start(update: Update, context):
     user_first_name = update.message.from_user.first_name or "Unknown"
 
     # Check if the user exists in MongoDB
-    existing_user = users_collection.find_one({"chat_id": user_telegram_id})
+    existing_user = users_collection.find_one({"telegramId": user_telegram_id})
     
     if not existing_user:
         # Insert user if they are new
