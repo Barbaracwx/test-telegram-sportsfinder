@@ -1,5 +1,4 @@
 import os
-import psycopg2
 from dotenv import load_dotenv
 from pymongo import MongoClient  # Import MongoDB
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
