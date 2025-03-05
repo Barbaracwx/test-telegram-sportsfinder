@@ -64,17 +64,19 @@ async def match_me(update: Update, context):
         await update.message.reply_text("No match found at the moment. Try again later!")
         return
 
-    # Create a match entry using pymongo
+    # Create a match entry using pymongo, including usernames for both users
     match_document = {
         "userAId": user_telegram_id,
         "userBId": potential_match["telegramId"],
+        "userAUsername": user.get("username", "Unknown"),
+        "userBUsername": potential_match.get("username", "Unknown"),
         "status": "active"
     }
     matches_collection.insert_one(match_document)
 
     # Update users as matched in pymongo
     users_collection.update_many(
-        {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}},
+        {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}} ,
         {"$set": {"isMatched": True}}
     )
 
