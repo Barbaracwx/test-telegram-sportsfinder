@@ -2,7 +2,7 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, Application
+from telegram.ext import CommandHandler, MessageHandler, filters, Application
 
 # Load environment variables from .env file
 load_dotenv()
@@ -132,7 +132,7 @@ async def end_match(update: Update, context):
 
     # Update users' isMatched status and wantToBeMatched status
     users_collection.update_many(
-        {"telegramId": {"$in": [user_telegram_id, match_document["userAId"], match_document["userBId"]] }},
+        {"telegramId": {"$in": [user_telegram_id, match_document["userAId"], match_document["userBId"]] }} ,
         {"$set": {"isMatched": False, "wantToBeMatched": False}}  # Reset both flags
     )
 
@@ -148,7 +148,36 @@ async def end_match(update: Update, context):
             text="Your match has ended."
         )
 
-# Register the /start, /matchme, and /endmatch command handlers
+# Function to forward messages between matched users
+async def forward_message(update: Update, context):
+    user_telegram_id = update.message.from_user.id
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+
+    if not user or not user.get("isMatched", False):
+        return  # The user is not matched or doesn't exist
+    
+    # Find the match document for the user
+    match_document = matches_collection.find_one({
+        "$or": [
+            {"userAId": user_telegram_id},
+            {"userBId": user_telegram_id}
+        ],
+        "status": "active"
+    })
+
+    if not match_document:
+        return  # No active match found
+
+    # Determine the other user in the match
+    other_user_id = match_document["userAId"] if match_document["userBId"] == user_telegram_id else match_document["userBId"]
+
+    # Forward the message to the other user
+    await context.bot.send_message(
+        chat_id=other_user_id,
+        text=f"Message from @{update.message.from_user.username}: {update.message.text}"
+    )
+
+# Register the /start, /matchme, /endmatch command handlers and the message handler for forwarding messages
 start_handler = CommandHandler('start', start)
 application.add_handler(start_handler)
 
@@ -157,6 +186,9 @@ application.add_handler(matchme_handler)
 
 endmatch_handler = CommandHandler('endmatch', end_match)
 application.add_handler(endmatch_handler)
+
+message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, forward_message)
+application.add_handler(message_handler)
 
 # Start the bot
 application.run_polling()
