@@ -61,14 +61,17 @@ async def match_me(update: Update, context):
         {"$set": {"wantToBeMatched": True}}
     )
 
-    # Find an ideal match based on sports preference (for simplicity, using random here)
+    # Send the confirmation message to the user
+    await update.message.reply_text("We gotcha! Let's find someone for you!")
+
+    # Find an ideal match based on users who also want to be matched
     potential_match = users_collection.find_one({
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True  # Only match with users who want to be matched
     })
 
     if not potential_match:
-        await update.message.reply_text("No match found at the moment. Try again later!")
+        await update.message.reply_text("No match found at the moment. Please wait for a match!")
         return
 
     # Create a match entry using pymongo, including usernames for both users
@@ -81,7 +84,7 @@ async def match_me(update: Update, context):
     }
     matches_collection.insert_one(match_document)
 
-    # Update users as matched in pymongo
+    # Update users as matched in pymongo and reset wantToBeMatched to False
     users_collection.update_many(
         {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}} ,
         {"$set": {"isMatched": True, "wantToBeMatched": False}}  # Set wantToBeMatched to False after matching
