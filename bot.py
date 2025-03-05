@@ -27,15 +27,6 @@ async def start(update: Update, context):
     existing_user = users_collection.find_one({"telegramId": user_telegram_id})
     
     if not existing_user:
-        # Insert user if they are new
-        users_collection.insert_one({
-            "chat_id": user_telegram_id,
-            "name": user_first_name,
-            "age": None,
-            "gender": None,
-            "sports": [],
-            "location": None
-        })
         welcome_message = f"Hello {user_first_name}, welcome to Sportsfinder! 🏆\n\n"
     else:
         welcome_message = f"Welcome back, {user_first_name}! 🎉\n\n"
