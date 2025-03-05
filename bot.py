@@ -87,12 +87,55 @@ async def match_me(update: Update, context):
         text=f"You have been matched with @{user['username']}! 🎉"
     )
 
-# Register the /start and /matchme command handlers
+# /endmatch function
+async def end_match(update: Update, context):
+    user_telegram_id = update.message.from_user.id
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+
+    if not user or not user.get("isMatched", False):
+        await update.message.reply_text("You are not currently matched with anyone.")
+        return
+
+    # Find the match document where either userAId or userBId is the current user
+    match_document = matches_collection.find_one({
+        "$or": [
+            {"userAId": user_telegram_id},
+            {"userBId": user_telegram_id}
+        ]
+    })
+
+    if not match_document:
+        await update.message.reply_text("No match found for you.")
+        return
+
+    # Get the other user's telegramId
+    other_user_telegram_id = match_document["userAId"] if match_document["userBId"] == user_telegram_id else match_document["userBId"]
+
+    # Update users to set isMatched to False
+    users_collection.update_many(
+        {"telegramId": {"$in": [user_telegram_id, other_user_telegram_id]}},
+        {"$set": {"isMatched": False}}
+    )
+
+    # Delete the match document from the matches collection
+    matches_collection.delete_one({"_id": match_document["_id"]})
+
+    # Notify both users that the match has ended
+    await update.message.reply_text("Your match has ended. You are now free to find a new partner!")
+    await context.bot.send_message(
+        chat_id=other_user_telegram_id,
+        text="Your match has ended. You are now free to find a new partner!"
+    )
+
+# Register the /start, /matchme, and /endmatch command handlers
 start_handler = CommandHandler('start', start)
 application.add_handler(start_handler)
 
 matchme_handler = CommandHandler('matchme', match_me)
 application.add_handler(matchme_handler)
+
+endmatch_handler = CommandHandler('endmatch', end_match)
+application.add_handler(endmatch_handler)
 
 # Start the bot
 application.run_polling()
