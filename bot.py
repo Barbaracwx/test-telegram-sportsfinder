@@ -1,80 +1,58 @@
 import os
-import logging
-import requests
-import pymongo
+import psycopg2
 from dotenv import load_dotenv
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from pymongo import MongoClient  # Import MongoDB
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CommandHandler, Application
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
-# Telegram Bot Token
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("BOT_TOKEN")
+DATABASE_URL = os.getenv("DATABASE_URL")  # MongoDB connection string
 
-# MongoDB Connection
-MONGO_URL = os.getenv("DATABASE_URL")
-client = pymongo.MongoClient(MONGO_URL)
-db = client["sportsfinder"]
-users_collection = db["User"]
+# Connect to MongoDB
+mongo_client = MongoClient(DATABASE_URL)
+db = mongo_client["test_database"]  # Use the database "sportsfinder"
+users_collection = db["User"]  # Use the collection "users"
 
-# Next.js API URL
-MATCH_API_URL = "https://your-vercel-app.vercel.app/api/match"
+# Create the Telegram Bot application
+application = Application.builder().token(TOKEN).build()
 
-# Enable logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Function to handle /start command
+async def start(update: Update, context):
+    user_telegram_id = update.message.from_user.id
+    user_first_name = update.message.from_user.first_name or "Unknown"
 
-async def start(update: Update, context: CallbackContext) -> None:
-    """Send a welcome message when the user starts the bot."""
-    await update.message.reply_text("Welcome to SportsFinder! Use /matchme to find a sports partner.")
-
-async def matchme(update: Update, context: CallbackContext) -> None:
-    """Find a match for the user."""
-    telegram_id = update.message.from_user.id
-    username = update.message.from_user.username
-    first_name = update.message.from_user.first_name
-    last_name = update.message.from_user.last_name
-
-    # Check if user exists in the database
-    user = users_collection.find_one({"telegramId": telegram_id})
-
-    if not user:
-        await update.message.reply_text("You are not registered. Please sign up on our website first.")
-        return
+    # Check if the user exists in MongoDB
+    existing_user = users_collection.find_one({"chat_id": user_telegram_id})
     
-    # Call Next.js backend to find a match
-    response = requests.post(MATCH_API_URL, json={"telegramId": telegram_id})
-    
-    if response.status_code == 200:
-        match_data = response.json()
-        user_a = match_data["match"]["userA"]
-        user_b = match_data["match"]["userB"]
-
-        if telegram_id == user_a:
-            other_user = users_collection.find_one({"telegramId": user_b})
-        else:
-            other_user = users_collection.find_one({"telegramId": user_a})
-
-        other_username = other_user.get("username", "Unknown")
-        await update.message.reply_text(f"You are matched with @{other_username}! Start chatting now. 🎾🏀⚽")
+    if not existing_user:
+        # Insert user if they are new
+        users_collection.insert_one({
+            "chat_id": user_telegram_id,
+            "name": user_first_name,
+            "age": None,
+            "gender": None,
+            "sports": [],
+            "location": None
+        })
+        welcome_message = f"Hello {user_first_name}, welcome to Sportsfinder! 🏆\n\n"
     else:
-        await update.message.reply_text("No suitable match found at the moment. Try again later.")
+        welcome_message = f"Welcome back, {user_first_name}! 🎉\n\n"
 
-async def unknown(update: Update, context: CallbackContext) -> None:
-    """Handle unknown commands."""
-    await update.message.reply_text("Sorry, I didn't understand that command.")
+    # Create the web app button
+    keyboard = [[InlineKeyboardButton("My Profile", web_app={'url': 'https://webapp-sportsfinder.vercel.app/'})]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-def main():
-    """Start the bot."""
-    app = Application.builder().token(BOT_TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("matchme", matchme))
-    app.add_handler(MessageHandler(filters.COMMAND, unknown))
+    await update.message.reply_text(
+        welcome_message + "Are you ready to find your sports partner?\n\nClick the button below to set up your profile.",
+        reply_markup=reply_markup
+    )
 
-    logger.info("Bot is running...")
-    app.run_polling()
+# Register the /start command handler
+start_handler = CommandHandler('start', start)
+application.add_handler(start_handler)
 
-if __name__ == "__main__":
-    main()
+# Start the bot
+application.run_polling()
