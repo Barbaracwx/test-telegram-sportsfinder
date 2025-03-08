@@ -28,7 +28,7 @@ async def start(update: Update, context):
     existing_user = users_collection.find_one({"telegramId": user_telegram_id})
     
     if not existing_user:
-        welcome_message = f"Hello {user_first_name}, welcome to Sportsfinder!\n\n"
+        welcome_message = f"Hello {user_first_name}, welcome to SportsFinder!\n\n"
     else:
         welcome_message = f"Welcome back, {user_first_name}! \n\n"
 
@@ -41,6 +41,42 @@ async def start(update: Update, context):
         reply_markup=reply_markup
     )
 
+    # Function to handle /start command
+    async def start(update: Update, context):
+        user_telegram_id = update.message.from_user.id
+        user_first_name = update.message.from_user.first_name or "Unknown"
+        user_username = update.message.from_user.username or "Unknown"
+
+        # Check if the user exists in MongoDB
+        existing_user = users_collection.find_one({"telegramId": user_telegram_id})
+
+        if not existing_user:
+            # First-time user
+            welcome_message = (
+                f"Welcome {user_first_name} to SportsFinder!\n\n"
+                "This is a player matching service for your favourite sports. "
+                "To begin, click on the button below to open our web app - "
+                "it’ll give you access to view and edit your profile from there!"
+            )
+
+            # Create the web app button for first-time users
+            keyboard = [[InlineKeyboardButton("My Profile", web_app={'url': 'https://webapp-sportsfinder.vercel.app/'})]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+        else:
+            # Returning user
+            welcome_message = (
+                f"Welcome back, {user_first_name}!\n\n"
+                "SportsFinder is a player matching bot for your favourite sports! "
+                "Click the buttons below to edit your profile or your match preferences."
+            )
+
+        # Send the welcome message with the appropriate buttons
+        await update.message.reply_text(
+            welcome_message,
+            reply_markup=reply_markup
+        )
+
 # /matchme function
 async def match_me(update: Update, context):
     user_telegram_id = update.message.from_user.id
@@ -48,6 +84,16 @@ async def match_me(update: Update, context):
 
     if not user:
         await update.message.reply_text("Please complete your profile first!")
+        return
+    
+    # Check if the profile is complete
+    if not is_profile_complete(user):
+        await update.message.reply_text("Please complete your profile first!")
+        return
+    
+    # Check if the match preferences are complete
+    if not are_preferences_complete(user):
+        await update.message.reply_text("Please complete your match preferences first!")
         return
 
     # Check if the user is already matched
@@ -176,6 +222,16 @@ async def forward_message(update: Update, context):
         chat_id=other_user_id,
         text=f"Message from @{update.message.from_user.username}: {update.message.text}"
     )
+
+#helper functions
+def is_profile_complete(user):
+    """Check if the user's profile is complete."""
+    required_fields = ["age", "gender", "location", "sports"]
+    return all(user.get(field) for field in required_fields)
+
+def are_preferences_complete(user):
+    """Check if the user's match preferences are complete."""
+    return bool(user.get("matchPreferences"))
 
 # Register the /start, /matchme, /endmatch command handlers and the message handler for forwarding messages
 start_handler = CommandHandler('start', start)
