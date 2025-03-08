@@ -50,7 +50,7 @@ async def start(update: Update, context):
         # Returning user
         welcome_message = (
             f"Welcome back, {user_first_name}!\n\n"
-            "SportsFinder is a player matching bot for your favourite sports!"
+            "SportsFinder is a player matching bot for your favourite sports! Click the commands below to edit your profile or match preferences! "
         )
 
         # Send the welcome message without any buttons
