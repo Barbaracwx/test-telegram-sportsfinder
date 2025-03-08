@@ -41,19 +41,20 @@ async def start(update: Update, context):
         keyboard = [[InlineKeyboardButton("My Profile", web_app={'url': 'https://webapp-sportsfinder.vercel.app/'})]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
+        # Send the welcome message with the button
+        await update.message.reply_text(
+            welcome_message,
+            reply_markup=reply_markup
+        )
     else:
         # Returning user
         welcome_message = (
             f"Welcome back, {user_first_name}!\n\n"
-            "SportsFinder is a player matching bot for your favourite sports! "
-            "Click the buttons below to edit your profile or your match preferences."
+            "SportsFinder is a player matching bot for your favourite sports!"
         )
 
-    # Send the welcome message with the appropriate buttons
-    await update.message.reply_text(
-        welcome_message,
-        reply_markup=reply_markup
-    )
+        # Send the welcome message without any buttons
+        await update.message.reply_text(welcome_message)
 
 # /matchme function
 async def match_me(update: Update, context):
@@ -156,7 +157,7 @@ async def end_match(update: Update, context):
 
     # Update users' isMatched status and wantToBeMatched status
     users_collection.update_many(
-        {"telegramId": {"$in": [user_telegram_id, match_document["userAId"], match_document["userBId"]] }} ,
+        {"telegramId": {"$in": [user_telegram_id, match_document["userAId"], match_document["userBId"]]}} ,
         {"$set": {"isMatched": False, "wantToBeMatched": False}}  # Reset both flags
     )
 
@@ -201,7 +202,7 @@ async def forward_message(update: Update, context):
         text=f"Message from @{update.message.from_user.username}: {update.message.text}"
     )
 
-#helper functions
+# Helper functions
 def is_profile_complete(user):
     """Check if the user's profile is complete."""
     required_fields = ["age", "gender", "location", "sports"]
