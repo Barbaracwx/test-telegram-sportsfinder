@@ -452,7 +452,7 @@ async def user_experience_response(update: Update, context: ContextTypes.DEFAULT
             {"$set": {field_to_update: rating}}
         )
 
-        # Ask about the experience with the matched user
+        # the other user
         other_user_id = match_document["userBId"] if user_telegram_id == match_document["userAId"] else match_document["userAId"]
         other_user = users_collection.find_one({"telegramId": other_user_id})
         other_user_display_name = other_user.get("displayName", "Unknown")
@@ -546,6 +546,7 @@ def are_preferences_complete(user):
 # Register the /start, /matchme, /endmatch command handlers and the message handler for forwarding messages
 start_handler = CommandHandler('start', start)
 application.add_handler(start_handler)
+
 
 matchme_handler = CommandHandler('matchme', match_me)
 application.add_handler(matchme_handler)
