@@ -73,6 +73,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Send the welcome message without any buttons
         await update.message.reply_text(welcome_message)
 
+# Function to handle /editprofile command
+async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_first_name = update.message.from_user.first_name or "Unknown"
+    user_username = update.message.from_user.username or "Unknown"
+    
+    # Craft the message with a personalized greeting and the web app button
+    edit_profile_message = (
+        f"Hi @{user_username}! You can click on the button below to open up the web app! "
+        "It will give you access to view/edit your profile from there!"
+    )
+    
+    # Create the web app button for editing profile
+    keyboard = [[InlineKeyboardButton("Edit Profile", web_app={'url': 'https://webapp-profile-sportsfinder.vercel.app/'})]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Send the message with the button
+    await update.message.reply_text(
+        edit_profile_message,
+        reply_markup=reply_markup
+    )
+
 # /matchme function
 async def match_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
@@ -547,6 +568,8 @@ def are_preferences_complete(user):
 start_handler = CommandHandler('start', start)
 application.add_handler(start_handler)
 
+editprofile_handler = CommandHandler('editprofile', edit_profile)
+application.add_handler(editprofile_handler)
 
 matchme_handler = CommandHandler('matchme', match_me)
 application.add_handler(matchme_handler)
