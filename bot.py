@@ -465,9 +465,9 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
     try:
         # Extract the reason and match ID from the callback data
         callback_data = query.data
-        parts = callback_data.split("_")
+        parts = callback_data.split("_", 4)  # Split into 5 parts only
         
-        if len(parts) != 4:
+        if len(parts) != 5:
             await query.edit_message_text("Invalid callback data format.")
             return
 
