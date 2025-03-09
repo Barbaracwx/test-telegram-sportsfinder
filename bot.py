@@ -120,11 +120,8 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("User not found.")
         return
     
-    # Send the "Gotcha! Sportsfinding your player in {sport}..." message as a new message
-    await context.bot.send_message(
-        chat_id=user_telegram_id,
-        text=f"Gotcha! Sportsfinding your player in {sport}..."
-    )
+    # Send the "Gotcha! Sportsfinding for you..." message
+    await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
 
     # Mark the user as wanting to be matched for the selected sport
     users_collection.update_one(
