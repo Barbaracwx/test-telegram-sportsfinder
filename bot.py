@@ -27,6 +27,15 @@ matches_collection = db["Match"]  # Use the collection "matches"
 # Create the Telegram Bot application
 application = Application.builder().token(TOKEN).build()
 
+# Mapping reason numbers to their full text descriptions
+NO_GAME_REASONS = {
+    "1": "Couldn’t find a common date",
+    "2": "Match was unresponsive/unwilling to play",
+    "3": "Uncomfortable with other player",
+    "4": "Decided not to play",
+    "5": "Others"
+}
+
 # Function to handle /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
@@ -298,7 +307,7 @@ async def feedback_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             other_user_id = match_document["userAId"]
         else:
             await query.edit_message_text("You are not part of this match.")
-            return
+            return 
 
         # Update the match document with the feedback
         matches_collection.update_one(
@@ -471,7 +480,7 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
             await query.edit_message_text("Invalid callback data format.")
             return
 
-        reason, match_id = parts[2], parts[4]
+        reason, match_id = parts[3], parts[4]
         user_telegram_id = query.from_user.id
 
         # Convert match_id to ObjectId
@@ -496,6 +505,8 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
         else:
             await query.edit_message_text("You are not part of this match.")
             return
+        
+        reason_text = NO_GAME_REASONS.get(reason, "Unknown reason")
 
         # Update the match document with the reason
         matches_collection.update_one(
@@ -504,7 +515,7 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
         )
 
         # Notify the user that their feedback has been recorded
-        await query.edit_message_text(f"Why wasn’t a game played? You responded: {reason}.")
+        await query.edit_message_text(f"Why wasn’t a game played? You responded: {reason_text}.")
 
         # Send a final thank you message
         await context.bot.send_message(
