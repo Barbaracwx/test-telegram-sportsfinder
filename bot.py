@@ -221,6 +221,24 @@ async def end_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text="The other sports-finder has ended the match."
         )
 
+    # Ask both users for feedback
+    feedback_keyboard = [
+        [InlineKeyboardButton("Yes", callback_data=f"feedback_yes_{match_document['_id']}")],
+        [InlineKeyboardButton("No", callback_data=f"feedback_no_{match_document['_id']}")]
+    ]
+    feedback_markup = InlineKeyboardMarkup(feedback_keyboard)
+
+    await context.bot.send_message(
+        chat_id=user_telegram_id,
+        text="Was a game played?",
+        reply_markup=feedback_markup
+    )
+    await context.bot.send_message(
+        chat_id=other_user_id,
+        text="Was a game played?",
+        reply_markup=feedback_markup
+    )
+
 # Function to forward messages between matched users
 async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
@@ -250,6 +268,49 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=f"Message from {user.get('displayName', 'Unknown')}: {update.message.text}"
     )
 
+# Callback function for feedback
+async def feedback_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback query
+
+    # Extract feedback data
+    feedback_data = query.data.split("_")
+    feedback_answer = feedback_data[1]  # "yes" or "no"
+    match_id = feedback_data[2]  # Match ID
+
+    user_telegram_id = query.from_user.id
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+
+    if not user:
+        await query.edit_message_text("User not found.")
+        return
+
+    # Find the match document
+    match_document = matches_collection.find_one({"_id": match_id})
+    if not match_document:
+        await query.edit_message_text("Match not found.")
+        return
+
+    # Determine the other user in the match
+    other_user_id = match_document["userAId"] if match_document["userBId"] == user_telegram_id else match_document["userBId"]
+
+    # Create feedback document
+    feedback_document = {
+        "userAId": match_document["userAId"],
+        "userBId": match_document["userBId"],
+        "userAUsername": match_document["userAUsername"],
+        "userBUsername": match_document["userBUsername"],
+        "sport": match_document["sport"],
+        "gamePlayed": feedback_answer == "yes"  # True if "yes", False if "no"
+    }
+
+    # Insert feedback into the Feedback collection
+    feedback_collection = db["Feedback"]
+    feedback_collection.insert_one(feedback_document)
+
+    # Send confirmation message
+    await query.edit_message_text(f"Thank you for your feedback! You answered: {feedback_answer}.")
+
 # Helper functions
 def is_profile_complete(user):
     """Check if the user's profile is complete."""
@@ -275,6 +336,9 @@ application.add_handler(message_handler)
 
 # Register the callback query handler for sport selection
 application.add_handler(CallbackQueryHandler(sport_selected, pattern="^sport_"))
+
+# Register the callback query handler for feedback
+application.add_handler(CallbackQueryHandler(feedback_response, pattern="^feedback_"))
 
 # Start the bot
 application.run_polling()
