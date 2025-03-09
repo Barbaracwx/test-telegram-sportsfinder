@@ -464,11 +464,22 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
 
     try:
         # Extract the reason and match ID from the callback data
-        reason, match_id = query.data.split("_")[2], query.data.split("_")[3]
+        callback_data = query.data
+        parts = callback_data.split("_")
+        
+        if len(parts) != 4:
+            await query.edit_message_text("Invalid callback data format.")
+            return
+
+        reason, match_id = parts[2], parts[3]
         user_telegram_id = query.from_user.id
 
         # Convert match_id to ObjectId
-        match_id = ObjectId(match_id)
+        try:
+            match_id = ObjectId(match_id)
+        except Exception as e:
+            await query.edit_message_text("Invalid match ID.")
+            return
 
         # Find the match document
         match_document = matches_collection.find_one({"_id": match_id})
