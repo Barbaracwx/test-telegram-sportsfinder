@@ -568,7 +568,7 @@ def are_preferences_complete(user):
 start_handler = CommandHandler('start', start)
 application.add_handler(start_handler)
 
-editprofile_handler = CommandHandler('editprofile', edit_profile)
+editprofile_handler = CommandHandler('profile', edit_profile)
 application.add_handler(editprofile_handler)
 
 matchme_handler = CommandHandler('matchme', match_me)
