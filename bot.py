@@ -163,11 +163,11 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Send the match info to the users
     await context.bot.send_message(
         chat_id=user_telegram_id,
-        text=f"You have been matched with @{potential_match['username']} for {sport}! 🎉"
+        text=f"You have been matched with @{potential_match.get('displayName', 'Unknown')} for {sport}! 🎉"
     )
     await context.bot.send_message(
         chat_id=potential_match["telegramId"],
-        text=f"You have been matched with @{user['username']} for {sport}! 🎉"
+        text=f"You have been matched with {user.get('displayName', 'Unknown')} for {sport}! 🎉"
     )
 
 # /endmatch function
@@ -247,7 +247,7 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Forward the message to the other user
     await context.bot.send_message(
         chat_id=other_user_id,
-        text=f"Message from @{update.message.from_user.username}: {update.message.text}"
+        text=f"Message from {user.get('displayName', 'Unknown')}: {update.message.text}"
     )
 
 # Helper functions
