@@ -240,64 +240,6 @@ async def end_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=feedback_markup
     )
 
-# Callback function when feedback is provided
-from bson import ObjectId  # Import ObjectId for MongoDB _id handling
-
-# Callback function when feedback is provided
-async def feedback_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()  # Acknowledge the callback query
-
-    try:
-        # Extract the feedback and match ID from the callback data
-        feedback, match_id = query.data.split("_")[1], query.data.split("_")[2]
-        user_telegram_id = query.from_user.id
-
-        # Convert match_id to ObjectId
-        match_id = ObjectId(match_id)
-
-        # Find the match document
-        match_document = matches_collection.find_one({"_id": match_id})
-
-        if not match_document:
-            await query.edit_message_text("Match not found.")
-            return
-
-        # Determine which user (A or B) provided the feedback
-        if user_telegram_id == match_document["userAId"]:
-            field_to_update = "gamePlayedA"
-        elif user_telegram_id == match_document["userBId"]:
-            field_to_update = "gamePlayedB"
-        else:
-            await query.edit_message_text("You are not part of this match.")
-            return
-
-        # Update the match document with the feedback
-        matches_collection.update_one(
-            {"_id": match_id},
-            {"$set": {field_to_update: feedback}}
-        )
-
-        # Notify the user that their feedback has been recorded
-        await query.edit_message_text(f"Thank you for your feedback! You responded: {feedback}.")
-
-        # Check if both users have provided feedback
-        updated_match_document = matches_collection.find_one({"_id": match_id})
-        if updated_match_document.get("gamePlayedA") and updated_match_document.get("gamePlayedB"):
-            # Both users have provided feedback
-            await context.bot.send_message(
-                chat_id=match_document["userAId"],
-                text="Both users have provided feedback on whether a game was played."
-            )
-            await context.bot.send_message(
-                chat_id=match_document["userBId"],
-                text="Both users have provided feedback on whether a game was played."
-            )
-    except Exception as e:
-        # Log the error and notify the user
-        print(f"Error in feedback_response: {e}")
-        await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
-
 # Function to forward messages between matched users
 async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
@@ -327,6 +269,243 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=f"Message from {user.get('displayName', 'Unknown')}: {update.message.text}"
     )
 
+# Callback function when feedback is provided
+async def feedback_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback query
+
+    try:
+        # Extract the feedback and match ID from the callback data
+        feedback, match_id = query.data.split("_")[1], query.data.split("_")[2]
+        user_telegram_id = query.from_user.id
+
+        # Convert match_id to ObjectId
+        match_id = ObjectId(match_id)
+
+        # Find the match document
+        match_document = matches_collection.find_one({"_id": match_id})
+
+        if not match_document:
+            await query.edit_message_text("Match not found.")
+            return
+
+        # Determine which user (A or B) provided the feedback
+        if user_telegram_id == match_document["userAId"]:
+            field_to_update = "gamePlayedA"
+            other_user_id = match_document["userBId"]
+        elif user_telegram_id == match_document["userBId"]:
+            field_to_update = "gamePlayedB"
+            other_user_id = match_document["userAId"]
+        else:
+            await query.edit_message_text("You are not part of this match.")
+            return
+
+        # Update the match document with the feedback
+        matches_collection.update_one(
+            {"_id": match_id},
+            {"$set": {field_to_update: feedback}}
+        )
+
+        # Notify the user that their feedback has been recorded
+        await query.edit_message_text(f"Was the game played? You responded: {feedback}.")
+
+        # Ask follow-up questions based on the response
+        if feedback == "yes":
+            # Ask about the experience with the bot
+            bot_experience_keyboard = [
+                [InlineKeyboardButton("⭐ 1", callback_data=f"bot_experience_1_{match_id}")],
+                [InlineKeyboardButton("⭐ 2", callback_data=f"bot_experience_2_{match_id}")],
+                [InlineKeyboardButton("⭐ 3", callback_data=f"bot_experience_3_{match_id}")],
+                [InlineKeyboardButton("⭐ 4", callback_data=f"bot_experience_4_{match_id}")],
+                [InlineKeyboardButton("⭐ 5", callback_data=f"bot_experience_5_{match_id}")]
+            ]
+            bot_experience_markup = InlineKeyboardMarkup(bot_experience_keyboard)
+            await context.bot.send_message(
+                chat_id=user_telegram_id,
+                text="How was your experience using SportsFinder’s bot?",
+                reply_markup=bot_experience_markup
+            )
+        else:
+            # Ask why the game wasn't played
+            no_game_reasons_keyboard = [
+                [InlineKeyboardButton("Couldn’t find a common date", callback_data=f"no_game_reason_1_{match_id}")],
+                [InlineKeyboardButton("Match was unresponsive/unwilling to play", callback_data=f"no_game_reason_2_{match_id}")],
+                [InlineKeyboardButton("Uncomfortable with other player", callback_data=f"no_game_reason_3_{match_id}")],
+                [InlineKeyboardButton("Decided not to play", callback_data=f"no_game_reason_4_{match_id}")],
+                [InlineKeyboardButton("Others", callback_data=f"no_game_reason_5_{match_id}")]
+            ]
+            no_game_reasons_markup = InlineKeyboardMarkup(no_game_reasons_keyboard)
+            await context.bot.send_message(
+                chat_id=user_telegram_id,
+                text="Sorry to hear that! Why wasn’t a game played?",
+                reply_markup=no_game_reasons_markup
+            )
+
+    except Exception as e:
+        # Log the error and notify the user
+        print(f"Error in feedback_response: {e}")
+        await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
+
+# Callback function for bot experience rating
+async def bot_experience_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback query
+
+    try:
+        # Extract the rating and match ID from the callback data
+        rating, match_id = query.data.split("_")[2], query.data.split("_")[3]
+        user_telegram_id = query.from_user.id
+
+        # Convert match_id to ObjectId
+        match_id = ObjectId(match_id)
+
+        # Find the match document
+        match_document = matches_collection.find_one({"_id": match_id})
+
+        if not match_document:
+            await query.edit_message_text("Match not found.")
+            return
+
+        # Determine which user (A or B) provided the feedback
+        if user_telegram_id == match_document["userAId"]:
+            field_to_update = "botExperienceA"
+        elif user_telegram_id == match_document["userBId"]:
+            field_to_update = "botExperienceB"
+        else:
+            await query.edit_message_text("You are not part of this match.")
+            return
+
+        # Update the match document with the bot experience rating
+        matches_collection.update_one(
+            {"_id": match_id},
+            {"$set": {field_to_update: rating}}
+        )
+
+        # Notify the user that their feedback has been recorded
+        await query.edit_message_text(f"How was your experience using SportsFinder’s bot? You responded: ⭐ {rating}.")
+
+        # Ask about the experience with the matched user
+        other_user_id = match_document["userBId"] if user_telegram_id == match_document["userAId"] else match_document["userAId"]
+        other_user = users_collection.find_one({"telegramId": other_user_id})
+        other_user_display_name = other_user.get("displayName", "Unknown")
+
+        user_experience_keyboard = [
+            [InlineKeyboardButton("⭐ 1", callback_data=f"user_experience_1_{match_id}")],
+            [InlineKeyboardButton("⭐ 2", callback_data=f"user_experience_2_{match_id}")],
+            [InlineKeyboardButton("⭐ 3", callback_data=f"user_experience_3_{match_id}")],
+            [InlineKeyboardButton("⭐ 4", callback_data=f"user_experience_4_{match_id}")],
+            [InlineKeyboardButton("⭐ 5", callback_data=f"user_experience_5_{match_id}")]
+        ]
+        user_experience_markup = InlineKeyboardMarkup(user_experience_keyboard)
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text=f"How was your experience with {other_user_display_name}?",
+            reply_markup=user_experience_markup
+        )
+
+    except Exception as e:
+        # Log the error and notify the user
+        print(f"Error in bot_experience_response: {e}")
+        await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
+
+# Callback function for user experience rating
+async def user_experience_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback query
+
+    try:
+        # Extract the rating and match ID from the callback data
+        rating, match_id = query.data.split("_")[2], query.data.split("_")[3]
+        user_telegram_id = query.from_user.id
+
+        # Convert match_id to ObjectId
+        match_id = ObjectId(match_id)
+
+        # Find the match document
+        match_document = matches_collection.find_one({"_id": match_id})
+
+        if not match_document:
+            await query.edit_message_text("Match not found.")
+            return
+
+        # Determine which user (A or B) provided the feedback
+        if user_telegram_id == match_document["userAId"]:
+            field_to_update = "userExperienceA"
+        elif user_telegram_id == match_document["userBId"]:
+            field_to_update = "userExperienceB"
+        else:
+            await query.edit_message_text("You are not part of this match.")
+            return
+
+        # Update the match document with the user experience rating
+        matches_collection.update_one(
+            {"_id": match_id},
+            {"$set": {field_to_update: rating}}
+        )
+
+        # Notify the user that their feedback has been recorded
+        await query.edit_message_text(f"How was your experience with the matched user? You responded: ⭐ {rating}.")
+
+        # Send a final thank you message
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text="Thank you for your feedback!"
+        )
+
+    except Exception as e:
+        # Log the error and notify the user
+        print(f"Error in user_experience_response: {e}")
+        await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
+
+# Callback function for no game reasons
+async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback query
+
+    try:
+        # Extract the reason and match ID from the callback data
+        reason, match_id = query.data.split("_")[2], query.data.split("_")[3]
+        user_telegram_id = query.from_user.id
+
+        # Convert match_id to ObjectId
+        match_id = ObjectId(match_id)
+
+        # Find the match document
+        match_document = matches_collection.find_one({"_id": match_id})
+
+        if not match_document:
+            await query.edit_message_text("Match not found.")
+            return
+
+        # Determine which user (A or B) provided the feedback
+        if user_telegram_id == match_document["userAId"]:
+            field_to_update = "noGameReasonA"
+        elif user_telegram_id == match_document["userBId"]:
+            field_to_update = "noGameReasonB"
+        else:
+            await query.edit_message_text("You are not part of this match.")
+            return
+
+        # Update the match document with the reason
+        matches_collection.update_one(
+            {"_id": match_id},
+            {"$set": {field_to_update: reason}}
+        )
+
+        # Notify the user that their feedback has been recorded
+        await query.edit_message_text(f"Why wasn’t a game played? You responded: {reason}.")
+
+        # Send a final thank you message
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text="Thank you for your feedback!"
+        )
+
+    except Exception as e:
+        # Log the error and notify the user
+        print(f"Error in no_game_reason_response: {e}")
+        await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
+
 # Helper functions
 def is_profile_complete(user):
     """Check if the user's profile is complete."""
@@ -355,6 +534,11 @@ application.add_handler(CallbackQueryHandler(sport_selected, pattern="^sport_"))
 
 # Register the callback query handler for feedback responses
 application.add_handler(CallbackQueryHandler(feedback_response, pattern="^feedback_"))
+
+# Register the callback query handlers for follow-up questions
+application.add_handler(CallbackQueryHandler(bot_experience_response, pattern="^bot_experience_"))
+application.add_handler(CallbackQueryHandler(user_experience_response, pattern="^user_experience_"))
+application.add_handler(CallbackQueryHandler(no_game_reason_response, pattern="^no_game_reason_"))
 
 # Start the bot
 application.run_polling()
