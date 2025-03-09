@@ -471,7 +471,7 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
             await query.edit_message_text("Invalid callback data format.")
             return
 
-        reason, match_id = parts[3], parts[4]
+        reason, match_id = parts[2], parts[4]
         user_telegram_id = query.from_user.id
 
         # Convert match_id to ObjectId
