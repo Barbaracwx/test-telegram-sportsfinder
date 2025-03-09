@@ -87,6 +87,8 @@ async def match_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("You are already matched with someone!")
         return
 
+    await update.message.reply_text("Testing matchme response")
+
     # Retrieve the user's selected sports from their match preferences
     selected_sports = user.get("matchPreferences", {}).get("sports", [])
     if not selected_sports:
