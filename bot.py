@@ -22,6 +22,7 @@ mongo_client = MongoClient(DATABASE_URL)
 db = mongo_client["test_database"]  # Use the database "sportsfinder"
 users_collection = db["User"]  # Use the collection "users"
 matches_collection = db["Match"]  # Use the collection "matches"
+feedback_collection = db["Feedback"]  # Use the collection "feedback"
 
 # Create the Telegram Bot application
 application = Application.builder().token(TOKEN).build()
@@ -269,6 +270,7 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # Callback function for feedback
+# Callback function for feedback
 async def feedback_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()  # Acknowledge the callback query
@@ -291,25 +293,40 @@ async def feedback_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Match not found.")
         return
 
-    # Determine the other user in the match
-    other_user_id = match_document["userAId"] if match_document["userBId"] == user_telegram_id else match_document["userBId"]
+    # Determine if the user is userA or userB
+    is_user_a = user_telegram_id == match_document["userAId"]
 
-    # Create feedback document
-    feedback_document = {
-        "userAId": match_document["userAId"],
-        "userBId": match_document["userBId"],
-        "userAUsername": match_document["userAUsername"],
-        "userBUsername": match_document["userBUsername"],
-        "sport": match_document["sport"],
-        "gamePlayed": feedback_answer == "yes"  # True if "yes", False if "no"
-    }
+    # Create or update feedback document
+    feedback_document = feedback_collection.find_one({"matchId": match_id})
 
-    # Insert feedback into the Feedback collection
-    feedback_collection = db["Feedback"]
-    feedback_collection.insert_one(feedback_document)
+    if not feedback_document:
+        # Create a new feedback document if it doesn't exist
+        feedback_document = {
+            "matchId": match_id,
+            "userAId": match_document["userAId"],
+            "userBId": match_document["userBId"],
+            "userAUsername": match_document["userAUsername"],
+            "userBUsername": match_document["userBUsername"],
+            "sport": match_document["sport"],
+            "gamePlayedA": None,  # Initialize as None
+            "gamePlayedB": None   # Initialize as None
+        }
+        feedback_collection.insert_one(feedback_document)
+
+    # Update the feedback document based on the user's response
+    if is_user_a:
+        feedback_collection.update_one(
+            {"matchId": match_id},
+            {"$set": {"gamePlayedA": feedback_answer == "yes"}}
+        )
+    else:
+        feedback_collection.update_one(
+            {"matchId": match_id},
+            {"$set": {"gamePlayedB": feedback_answer == "yes"}}
+        )
 
     # Send confirmation message
-    await query.edit_message_text(f"Thank you for your feedback! You answered: {feedback_answer}.")
+    await query.edit_message_text(f"Was a match played? Response: {feedback_answer}.")
 
 # Helper functions
 def is_profile_complete(user):
