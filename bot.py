@@ -87,12 +87,12 @@ async def match_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("You are already matched with someone!")
         return
 
-    await update.message.reply_text("Testing matchme response")
+    # Retrieve the user's selected sports from the sports field in MongoDB
+    sports_data = user.get("sports", {})  # Get the sports JSON object
+    selected_sports = list(sports_data.keys())  # Extract the keys (sports names)
 
-    # Retrieve the user's selected sports from their match preferences
-    selected_sports = user.get("matchPreferences", {}).get("sports", [])
     if not selected_sports:
-        await update.message.reply_text("You have not selected any sports in your match preferences!")
+        await update.message.reply_text("You have not selected any sports in your profile!")
         return
 
     # Create inline buttons for each sport
