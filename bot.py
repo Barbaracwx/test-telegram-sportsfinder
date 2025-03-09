@@ -452,8 +452,13 @@ async def user_experience_response(update: Update, context: ContextTypes.DEFAULT
             {"$set": {field_to_update: rating}}
         )
 
+        # Ask about the experience with the matched user
+        other_user_id = match_document["userBId"] if user_telegram_id == match_document["userAId"] else match_document["userAId"]
+        other_user = users_collection.find_one({"telegramId": other_user_id})
+        other_user_display_name = other_user.get("displayName", "Unknown")
+
         # Notify the user that their feedback has been recorded
-        await query.edit_message_text(f"How was your experience with the matched user? You responded: ⭐ {rating}.")
+        await query.edit_message_text(f"How was your experience with {other_user_display_name}? You responded: ⭐ {rating}.")
 
         # Send a final thank you message
         await context.bot.send_message(
