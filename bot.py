@@ -80,7 +80,7 @@ async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Craft the message with a personalized greeting and the web app button
     edit_profile_message = (
-        f"Hi @{user_username}! You can click on the button below to open up the web app! "
+        f"Hi {user_first_name}! You can click on the button below to open up the web app! "
         "It will give you access to view/edit your profile from there!"
     )
     
@@ -91,6 +91,27 @@ async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Send the message with the button
     await update.message.reply_text(
         edit_profile_message,
+        reply_markup=reply_markup
+    )
+
+# Function to handle /matchpreferences command
+async def match_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_first_name = update.message.from_user.first_name or "Unknown"
+    user_username = update.message.from_user.username or "Unknown"
+
+    # Create a message for the user with a link to the web app to view/edit their match preferences
+    message = (
+        f"Hi {user_first_name}, you can click on the button below to open the web app! "
+        "It’ll give you access to view and edit your match preferences from there!"
+    )
+
+    # Create the web app button
+    keyboard = [[InlineKeyboardButton("Edit Match Preferences", web_app={'url': 'https://webapp-matchpreferences-sportsfinder.vercel.app/'})]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Send the message with the button
+    await update.message.reply_text(
+        message,
         reply_markup=reply_markup
     )
 
@@ -570,6 +591,9 @@ application.add_handler(start_handler)
 
 editprofile_handler = CommandHandler('profile', edit_profile)
 application.add_handler(editprofile_handler)
+
+matchpreferences_handler = CommandHandler('matchpreferences', match_preferences)
+application.add_handler(matchpreferences_handler)
 
 matchme_handler = CommandHandler('matchme', match_me)
 application.add_handler(matchme_handler)
