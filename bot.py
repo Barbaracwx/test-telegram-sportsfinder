@@ -120,8 +120,11 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("User not found.")
         return
     
-    # Send the "Gotcha! Sportsfinding for you..." message
-    await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
+    # Send the "Gotcha! Sportsfinding your player in {sport}..." message as a new message
+    await context.bot.send_message(
+        chat_id=user_telegram_id,
+        text=f"Gotcha! Sportsfinding your player in {sport}..."
+    )
 
     # Mark the user as wanting to be matched for the selected sport
     users_collection.update_one(
@@ -137,7 +140,10 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     })
 
     if not potential_match:
-        await query.edit_message_text(f"No match found for {sport} at the moment. Please wait for a match!")
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text=f"No match found for {sport} at the moment. Please wait for a match!"
+        )
         return
 
     # Create a match entry using pymongo, including usernames for both users
@@ -158,7 +164,10 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     # Send the match info to the users
-    await query.edit_message_text(f"You have been matched with @{potential_match['username']} for {sport}! 🎉")
+    await context.bot.send_message(
+        chat_id=user_telegram_id,
+        text=f"You have been matched with @{potential_match['username']} for {sport}! 🎉"
+    )
     await context.bot.send_message(
         chat_id=potential_match["telegramId"],
         text=f"You have been matched with @{user['username']} for {sport}! 🎉"
