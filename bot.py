@@ -218,7 +218,7 @@ async def end_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if other_user:
         await context.bot.send_message(
             chat_id=other_user["telegramId"],
-            text="Your match has ended."
+            text="The other sports-finder has ended the match."
         )
 
 # Function to forward messages between matched users
