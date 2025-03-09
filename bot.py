@@ -10,6 +10,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,  # Import ContextTypes
 )
+from bson import ObjectId
 
 # Load environment variables from .env file
 load_dotenv()
@@ -22,7 +23,6 @@ mongo_client = MongoClient(DATABASE_URL)
 db = mongo_client["test_database"]  # Use the database "sportsfinder"
 users_collection = db["User"]  # Use the collection "users"
 matches_collection = db["Match"]  # Use the collection "matches"
-feedback_collection = db["Feedback"]  # Use the collection "feedback"
 
 # Create the Telegram Bot application
 application = Application.builder().token(TOKEN).build()
@@ -206,7 +206,7 @@ async def end_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Update users' isMatched status and wantToBeMatched status
     users_collection.update_many(
-        {"telegramId": {"$in": [user_telegram_id, match_document["userAId"], match_document["userBId"]]}} ,
+        {"telegramId": {"$in": [user_telegram_id, match_document["userAId"], match_document["userBId"]]}},
         {"$set": {"isMatched": False, "wantToBeMatched": False}}  # Reset both flags
     )
 
@@ -240,6 +240,64 @@ async def end_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=feedback_markup
     )
 
+# Callback function when feedback is provided
+from bson import ObjectId  # Import ObjectId for MongoDB _id handling
+
+# Callback function when feedback is provided
+async def feedback_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback query
+
+    try:
+        # Extract the feedback and match ID from the callback data
+        feedback, match_id = query.data.split("_")[1], query.data.split("_")[2]
+        user_telegram_id = query.from_user.id
+
+        # Convert match_id to ObjectId
+        match_id = ObjectId(match_id)
+
+        # Find the match document
+        match_document = matches_collection.find_one({"_id": match_id})
+
+        if not match_document:
+            await query.edit_message_text("Match not found.")
+            return
+
+        # Determine which user (A or B) provided the feedback
+        if user_telegram_id == match_document["userAId"]:
+            field_to_update = "gamePlayedA"
+        elif user_telegram_id == match_document["userBId"]:
+            field_to_update = "gamePlayedB"
+        else:
+            await query.edit_message_text("You are not part of this match.")
+            return
+
+        # Update the match document with the feedback
+        matches_collection.update_one(
+            {"_id": match_id},
+            {"$set": {field_to_update: feedback}}
+        )
+
+        # Notify the user that their feedback has been recorded
+        await query.edit_message_text(f"Thank you for your feedback! You responded: {feedback}.")
+
+        # Check if both users have provided feedback
+        updated_match_document = matches_collection.find_one({"_id": match_id})
+        if updated_match_document.get("gamePlayedA") and updated_match_document.get("gamePlayedB"):
+            # Both users have provided feedback
+            await context.bot.send_message(
+                chat_id=match_document["userAId"],
+                text="Both users have provided feedback on whether a game was played."
+            )
+            await context.bot.send_message(
+                chat_id=match_document["userBId"],
+                text="Both users have provided feedback on whether a game was played."
+            )
+    except Exception as e:
+        # Log the error and notify the user
+        print(f"Error in feedback_response: {e}")
+        await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
+
 # Function to forward messages between matched users
 async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
@@ -269,65 +327,6 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=f"Message from {user.get('displayName', 'Unknown')}: {update.message.text}"
     )
 
-# Callback function for feedback
-# Callback function for feedback
-async def feedback_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()  # Acknowledge the callback query
-
-    # Extract feedback data
-    feedback_data = query.data.split("_")
-    feedback_answer = feedback_data[1]  # "yes" or "no"
-    match_id = feedback_data[2]  # Match ID
-
-    user_telegram_id = query.from_user.id
-    user = users_collection.find_one({"telegramId": user_telegram_id})
-
-    if not user:
-        await query.edit_message_text("User not found.")
-        return
-
-    # Find the match document
-    match_document = matches_collection.find_one({"_id": match_id})
-    if not match_document:
-        await query.edit_message_text("Match not found.")
-        return
-
-    # Determine if the user is userA or userB
-    is_user_a = user_telegram_id == match_document["userAId"]
-
-    # Create or update feedback document
-    feedback_document = feedback_collection.find_one({"matchId": match_id})
-
-    if not feedback_document:
-        # Create a new feedback document if it doesn't exist
-        feedback_document = {
-            "matchId": match_id,
-            "userAId": match_document["userAId"],
-            "userBId": match_document["userBId"],
-            "userAUsername": match_document["userAUsername"],
-            "userBUsername": match_document["userBUsername"],
-            "sport": match_document["sport"],
-            "gamePlayedA": None,  # Initialize as None
-            "gamePlayedB": None   # Initialize as None
-        }
-        feedback_collection.insert_one(feedback_document)
-
-    # Update the feedback document based on the user's response
-    if is_user_a:
-        feedback_collection.update_one(
-            {"matchId": match_id},
-            {"$set": {"gamePlayedA": feedback_answer == "yes"}}
-        )
-    else:
-        feedback_collection.update_one(
-            {"matchId": match_id},
-            {"$set": {"gamePlayedB": feedback_answer == "yes"}}
-        )
-
-    # Send confirmation message
-    await query.edit_message_text(f"Was a match played? Response: {feedback_answer}.")
-
 # Helper functions
 def is_profile_complete(user):
     """Check if the user's profile is complete."""
@@ -354,7 +353,7 @@ application.add_handler(message_handler)
 # Register the callback query handler for sport selection
 application.add_handler(CallbackQueryHandler(sport_selected, pattern="^sport_"))
 
-# Register the callback query handler for feedback
+# Register the callback query handler for feedback responses
 application.add_handler(CallbackQueryHandler(feedback_response, pattern="^feedback_"))
 
 # Start the bot
