@@ -2,7 +2,14 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, MessageHandler, filters, Application
+from telegram.ext import (
+    CommandHandler,
+    MessageHandler,
+    filters,
+    Application,
+    CallbackQueryHandler,
+    ContextTypes,  # Import ContextTypes
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,7 +27,7 @@ matches_collection = db["Match"]  # Use the collection "matches"
 application = Application.builder().token(TOKEN).build()
 
 # Function to handle /start command
-async def start(update: Update, context):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
     user_first_name = update.message.from_user.first_name or "Unknown"
     user_username = update.message.from_user.username or "Unknown"
@@ -57,7 +64,7 @@ async def start(update: Update, context):
         await update.message.reply_text(welcome_message)
 
 # /matchme function
-async def match_me(update: Update, context):
+async def match_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
     user = users_collection.find_one({"telegramId": user_telegram_id})
 
@@ -80,23 +87,52 @@ async def match_me(update: Update, context):
         await update.message.reply_text("You are already matched with someone!")
         return
 
-    # Mark the user as wanting to be matched
-    users_collection.update_one(
-        {"telegramId": user_telegram_id},
-        {"$set": {"wantToBeMatched": True}}
+    # Retrieve the user's selected sports from their match preferences
+    selected_sports = user.get("matchPreferences", {}).get("sports", [])
+    if not selected_sports:
+        await update.message.reply_text("You have not selected any sports in your match preferences!")
+        return
+
+    # Create inline buttons for each sport
+    keyboard = [
+        [InlineKeyboardButton(sport, callback_data=f"sport_{sport}")] for sport in selected_sports
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Ask the user which sport they want to find a match for
+    await update.message.reply_text(
+        "Ready for your next game? Which sport are you looking to find a player for:",
+        reply_markup=reply_markup
     )
 
-    # Send the confirmation message to the user
-    await update.message.reply_text("We gotcha! Let's find someone for you!")
+# Callback function when a sport is selected
+async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback query
 
-    # Find an ideal match based on users who also want to be matched
+    sport = query.data.split("_")[1]  # Extract the selected sport
+    user_telegram_id = query.from_user.id
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+
+    if not user:
+        await query.edit_message_text("User not found.")
+        return
+
+    # Mark the user as wanting to be matched for the selected sport
+    users_collection.update_one(
+        {"telegramId": user_telegram_id},
+        {"$set": {"wantToBeMatched": True, "selectedSport": sport}}
+    )
+
+    # Find an ideal match based on users who also want to be matched for the same sport
     potential_match = users_collection.find_one({
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
-        "wantToBeMatched": True  # Only match with users who want to be matched
+        "wantToBeMatched": True,  # Only match with users who want to be matched
+        "selectedSport": sport  # Match for the same sport
     })
 
     if not potential_match:
-        await update.message.reply_text("No match found at the moment. Please wait for a match!")
+        await query.edit_message_text(f"No match found for {sport} at the moment. Please wait for a match!")
         return
 
     # Create a match entry using pymongo, including usernames for both users
@@ -105,6 +141,7 @@ async def match_me(update: Update, context):
         "userBId": potential_match["telegramId"],
         "userAUsername": user.get("username", "Unknown"),
         "userBUsername": potential_match.get("username", "Unknown"),
+        "sport": sport,
         "status": "active"
     }
     matches_collection.insert_one(match_document)
@@ -116,14 +153,14 @@ async def match_me(update: Update, context):
     )
 
     # Send the match info to the users
-    await update.message.reply_text(f"You have been matched with @{potential_match['username']}! 🎉")
+    await query.edit_message_text(f"You have been matched with @{potential_match['username']} for {sport}! 🎉")
     await context.bot.send_message(
         chat_id=potential_match["telegramId"],
-        text=f"You have been matched with @{user['username']}! 🎉"
+        text=f"You have been matched with @{user['username']} for {sport}! 🎉"
     )
 
 # /endmatch function
-async def end_match(update: Update, context):
+async def end_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
     user = users_collection.find_one({"telegramId": user_telegram_id})
 
@@ -174,7 +211,7 @@ async def end_match(update: Update, context):
         )
 
 # Function to forward messages between matched users
-async def forward_message(update: Update, context):
+async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
     user = users_collection.find_one({"telegramId": user_telegram_id})
 
@@ -224,6 +261,9 @@ application.add_handler(endmatch_handler)
 
 message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, forward_message)
 application.add_handler(message_handler)
+
+# Register the callback query handler for sport selection
+application.add_handler(CallbackQueryHandler(sport_selected, pattern="^sport_"))
 
 # Start the bot
 application.run_polling()
