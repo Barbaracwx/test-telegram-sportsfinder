@@ -48,7 +48,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not existing_user:
         # First-time user
         welcome_message = (
-            f"Welcome {user_first_name} to SportsFinder!\n\n"
+            f"Welcome to SportsFinder!\n\n"
             "This is a player matching service for your favourite sports. "
             "To begin, click on the button below to open our web app - "
             "it’ll give you access to view and edit your profile from there!"
