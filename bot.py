@@ -75,20 +75,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Function to handle /editprofile command
 async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_first_name = update.message.from_user.first_name or "Unknown"
-    user_username = update.message.from_user.username or "Unknown"
-    
-    # Craft the message with a personalized greeting and the web app button
+    user_telegram_id = update.message.from_user.id
+
+    # Fetch the user's document from MongoDB
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+
+    if not user:
+        await update.message.reply_text("User not found. Please complete your profile first!")
+        return
+
+    # Use the displayName from MongoDB, or fallback to first_name if not available
+    user_display_name = user.get("displayName", update.message.from_user.first_name or "Unknown")
+
+    # Craft the message with a personalized greeting
     edit_profile_message = (
-        f"Hi {user_first_name}! You can click on the button below to open up the web app! "
-        "It will give you access to view/edit your profile from there!"
+        f"Hi {user_display_name}! Click on the respective buttons below to edit bio or match preferences!"
     )
-    
-    # Create the web app button for editing profile
-    keyboard = [[InlineKeyboardButton("Edit Profile", web_app={'url': 'https://webapp-profile-sportsfinder.vercel.app/'})]]
+
+    # Create two buttons: one for editing bio and one for editing match preferences
+    keyboard = [
+        [InlineKeyboardButton("Edit Bio", web_app={'url': 'https://webapp-profile-sportsfinder.vercel.app/'})],
+        [InlineKeyboardButton("Edit Match Preferences", web_app={'url': 'https://webapp-matchpreferences-sportsfinder.vercel.app/'})]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Send the message with the button
+    # Send the message with the buttons
     await update.message.reply_text(
         edit_profile_message,
         reply_markup=reply_markup
