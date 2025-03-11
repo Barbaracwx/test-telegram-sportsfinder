@@ -192,12 +192,35 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         {"$set": {"wantToBeMatched": True, "selectedSport": sport}}
     )
 
-    # Find an ideal match based on users who also want to be matched for the same sport
-    potential_match = users_collection.find_one({
+    # Retrieve the user's match preferences for the selected sport
+    match_preferences = user.get("matchPreferences", {}).get(sport, {})
+    age_range = match_preferences.get("ageRange", [18, 99])  # Default age range if not specified
+    gender_preference = match_preferences.get("genderPreference", "Any")  # Default to "Any" if not specified
+    skill_levels = match_preferences.get("skillLevels", [])  # Default to empty list if not specified
+    location_preferences = match_preferences.get("locationPreferences", [])  # Default to empty list if not specified
+
+    # Build the query for potential matches
+    query_filters = {
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True,  # Only match with users who want to be matched
-        "selectedSport": sport  # Match for the same sport
-    })
+        "selectedSport": sport,  # Match for the same sport
+        "age": {"$gte": age_range[0], "$lte": age_range[1]},  # Age within the specified range
+    }
+
+    # Add gender preference filter if specified
+    if gender_preference != "Any":
+        query_filters["gender"] = gender_preference
+
+    # Add skill level filter if specified
+    if skill_levels:
+        query_filters["sports." + sport] = {"$in": skill_levels}
+
+    # Add location preference filter if specified
+    if location_preferences:
+        query_filters["location"] = {"$in": location_preferences}
+
+    # Find an ideal match based on the query filters
+    potential_match = users_collection.find_one(query_filters)
 
     if not potential_match:
         await context.bot.send_message(
@@ -219,7 +242,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Update users as matched in pymongo and reset wantToBeMatched to False
     users_collection.update_many(
-        {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}} ,
+        {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}},
         {"$set": {"isMatched": True, "wantToBeMatched": False}}  # Set wantToBeMatched to False after matching
     )
 
