@@ -182,14 +182,6 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Send the "Gotcha! Sportsfinding for you..." message
     await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
 
-    # Extract the age range for the selected sport from matchPreference
-    match_preference = user.get("matchPreference", {})
-    sport_preference = match_preference.get(sport, {})
-    age_range = sport_preference.get("ageRange", [18, 85])
-
-    # Print or log the age range for debugging
-    print(f"Age range for {sport}: {age_range}")
-
     # Mark the user as wanting to be matched for the selected sport
     users_collection.update_one(
         {"telegramId": user_telegram_id},
@@ -200,8 +192,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     potential_match = users_collection.find_one({
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True,  # Only match with users who want to be matched
-        "selectedSport": sport  # Match for the same sport
-        "age": {"$gte": age_range[0], "$lte": age_range[1]}  # Match within the age range
+        "selectedSport": sport,  # Match for the same sport
     })
 
     if not potential_match:
