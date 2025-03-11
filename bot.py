@@ -587,22 +587,31 @@ async def feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Provide any feedback/reports here! Every response is greatly appreciated and every single one of them will be read!"
     )
+    # Set a state to indicate that the bot is waiting for feedback
+    context.user_data['awaiting_feedback'] = True
 
-# Function to handle user feedback messages
+# Message handler for feedback text
 async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.from_user
-    feedback_text = update.message.text
+    if context.user_data.get('awaiting_feedback', False):
+        user_telegram_id = update.message.from_user.id
+        user_first_name = update.message.from_user.first_name or "Unknown"
+        feedback_text = update.message.text
 
-    # Save feedback to MongoDB
-    feedback_data = {
-        "username": user.username,
-        "user_id": user.id,
-        "feedback": feedback_text
-    }
-    feedback_collection.insert_one(feedback_data)
+        # Save feedback to MongoDB
+        feedback_data = {
+            "username": user_first_name,
+            "user_id": user_telegram_id,
+            "feedback": feedback_text
+        }
+        feedback_collection.insert_one(feedback_data)
 
-    # Send a thank-you message
-    await update.message.reply_text("Thanks for your feedback!")
+        # Send a thank-you message
+        await update.message.reply_text("Thanks for your feedback!")
+
+        # Reset the state
+        context.user_data['awaiting_feedback'] = False
+    else:
+        await update.message.reply_text("Please use the /feedback command to provide feedback.")
 
 # Helper functions
 def is_profile_complete(user):
@@ -651,5 +660,6 @@ application.add_handler(CallbackQueryHandler(no_game_reason_response, pattern="^
 # Register the feedback message handler
 feedback_message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_feedback)
 application.add_handler(feedback_message_handler)
+
 # Start the bot
 application.run_polling()
