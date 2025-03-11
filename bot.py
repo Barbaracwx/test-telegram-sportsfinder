@@ -177,11 +177,15 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sport = query.data.split("_")[1]  # Extract the selected sport
     user_telegram_id = query.from_user.id
     user = users_collection.find_one({"telegramId": user_telegram_id})
-    display_name = user.get("displayName", "Unknown")
 
     if not user:
         await query.edit_message_text("User not found.")
         return
+    
+    # Extract the genderPreference for the selected sport
+    match_preferences = user.get("matchPreferences", {})
+    sport_preferences = match_preferences.get(sport, {})
+    gender = sport_preferences.get("genderPreference", "No preference")  # Default to "No preference" if not found
     
     # Send the "Gotcha! Sportsfinding for you..." message
     await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
@@ -197,7 +201,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True,  # Only match with users who want to be matched
         "selectedSport": sport,  # Match for the same sport
-        "displayName": display_name,
+        "gender": gender,
     })
 
     if not potential_match:
