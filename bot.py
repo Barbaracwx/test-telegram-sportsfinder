@@ -92,7 +92,10 @@ async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     # Create the web app button for editing profile
-    keyboard = [[InlineKeyboardButton("Edit Profile", web_app={'url': 'https://webapp-profile-sportsfinder.vercel.app/'})]]
+    keyboard = [
+        [InlineKeyboardButton("Edit Profile", web_app={'url': 'https://webapp-profile-sportsfinder.vercel.app/'})],
+        [InlineKeyboardButton("Edit Match Preferences", web_app={'url': 'https://webapp-matchpreferences-sportsfinder.vercel.app/'})]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Send the message with the button
@@ -174,6 +177,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sport = query.data.split("_")[1]  # Extract the selected sport
     user_telegram_id = query.from_user.id
     user = users_collection.find_one({"telegramId": user_telegram_id})
+    display_name = user.get("displayName", "Unknown")
 
     if not user:
         await query.edit_message_text("User not found.")
@@ -193,6 +197,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True,  # Only match with users who want to be matched
         "selectedSport": sport,  # Match for the same sport
+        "displayName": display_name,
     })
 
     if not potential_match:
