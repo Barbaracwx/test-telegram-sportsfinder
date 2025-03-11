@@ -192,35 +192,35 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         {"$set": {"wantToBeMatched": True, "selectedSport": sport}}
     )
 
-    # Retrieve the user's match preferences for the selected sport
+    # Extract User A's match preferences for the selected sport
     match_preferences = user.get("matchPreferences", {}).get(sport, {})
-    age_range = match_preferences.get("ageRange", [18, 99])  # Default age range if not specified
-    gender_preference = match_preferences.get("genderPreference", "Any")  # Default to "Any" if not specified
-    skill_levels = match_preferences.get("skillLevels", [])  # Default to empty list if not specified
-    location_preferences = match_preferences.get("locationPreferences", [])  # Default to empty list if not specified
+    age_range = match_preferences.get("ageRange", [18, 100])  # Default age range if not specified
+    gender_preference = match_preferences.get("genderPreference", None)
+    skill_levels = match_preferences.get("skillLevels", [])
+    location_preferences = match_preferences.get("locationPreferences", [])
 
-    # Build the query for potential matches
-    query_filters = {
+    # Build the query to find a potential match
+    query_filter = {
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True,  # Only match with users who want to be matched
         "selectedSport": sport,  # Match for the same sport
         "age": {"$gte": age_range[0], "$lte": age_range[1]},  # Age within the specified range
     }
 
-    # Add gender preference filter if specified
-    if gender_preference != "Either":
-        query_filters["gender"] = gender_preference
+    # Add gender preference to the query if specified
+    if gender_preference:
+        query_filter["gender"] = gender_preference
 
-    # Add skill level filter if specified
+    # Add skill level to the query if specified
     if skill_levels:
-        query_filters["sports." + sport] = {"$in": skill_levels}
+        query_filter[f"sports.{sport}"] = {"$in": skill_levels}
 
-    # Add location preference filter if specified
+    # Add location preferences to the query if specified
     if location_preferences:
-        query_filters["location"] = {"$in": location_preferences}
+        query_filter["location"] = {"$in": location_preferences}
 
-    # Find an ideal match based on the query filters
-    potential_match = users_collection.find_one(query_filters)
+    # Find the first user who matches all the criteria
+    potential_match = users_collection.find_one(query_filter)
 
     if not potential_match:
         await context.bot.send_message(
