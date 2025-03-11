@@ -582,37 +582,6 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
         print(f"Error in no_game_reason_response: {e}")
         await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
 
-# Function to handle /feedback command
-async def feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Provide any feedback/reports here! Every response is greatly appreciated and every single one of them will be read!"
-    )
-    # Set a state to indicate that the bot is waiting for feedback
-    context.user_data['awaiting_feedback'] = True
-
-# Message handler for feedback text
-async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get('awaiting_feedback', False):
-        user_telegram_id = update.message.from_user.id
-        user_first_name = update.message.from_user.first_name or "Unknown"
-        feedback_text = update.message.text
-
-        # Save feedback to MongoDB
-        feedback_data = {
-            "username": user_first_name,
-            "user_id": user_telegram_id,
-            "feedback": feedback_text
-        }
-        feedback_collection.insert_one(feedback_data)
-
-        # Send a thank-you message
-        await update.message.reply_text("Thanks for your feedback!")
-
-        # Reset the state
-        context.user_data['awaiting_feedback'] = False
-    else:
-        await update.message.reply_text("Please use the /feedback command to provide feedback.")
-
 # Helper functions
 def is_profile_complete(user):
     """Check if the user's profile is complete."""
@@ -639,10 +608,6 @@ application.add_handler(matchme_handler)
 endmatch_handler = CommandHandler('endmatch', end_match)
 application.add_handler(endmatch_handler)
 
-# Register the /feedback command handler
-feedback_handler = CommandHandler('feedback', feedback)
-application.add_handler(feedback_handler)
-
 message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, forward_message)
 application.add_handler(message_handler)
 
@@ -657,9 +622,6 @@ application.add_handler(CallbackQueryHandler(bot_experience_response, pattern="^
 application.add_handler(CallbackQueryHandler(user_experience_response, pattern="^user_experience_"))
 application.add_handler(CallbackQueryHandler(no_game_reason_response, pattern="^no_game_reason_"))
 
-# Register the feedback message handler
-feedback_message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_feedback)
-application.add_handler(feedback_message_handler)
 
 # Start the bot
 application.run_polling()
