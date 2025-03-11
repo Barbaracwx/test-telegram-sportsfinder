@@ -208,7 +208,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     # Add gender preference filter if specified
-    if gender_preference != "Any":
+    if gender_preference != "Either":
         query_filters["gender"] = gender_preference
 
     # Add skill level filter if specified
