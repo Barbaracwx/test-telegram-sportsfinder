@@ -182,10 +182,14 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("User not found.")
         return
     
-    # Extract the genderPreference for the selected sport
     match_preferences = user.get("matchPreferences", {})
+    print("Match Preferences:", match_preferences)  # Debug statement
+
     sport_preferences = match_preferences.get(sport, {})
-    gender = sport_preferences.get("genderPreference", "No preference")  # Default to "No preference" if not found
+    print("Sport Preferences:", sport_preferences)  # Debug statement
+
+    gender = sport_preferences.get("genderPreference", "No preference")
+    print("Gender Preference:", gender)  # Debug statement
     
     # Send the "Gotcha! Sportsfinding for you..." message
     await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
