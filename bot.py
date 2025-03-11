@@ -23,6 +23,7 @@ mongo_client = MongoClient(DATABASE_URL)
 db = mongo_client["test_database"]  # Use the database "sportsfinder"
 users_collection = db["User"]  # Use the collection "users"
 matches_collection = db["Match"]  # Use the collection "matches"
+feedback_collection = db["Feedback"]  # Use the collection "Feedback"
 
 # Create the Telegram Bot application
 application = Application.builder().token(TOKEN).build()
@@ -75,31 +76,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Function to handle /editprofile command
 async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_first_name = update.message.from_user.first_name or "Unknown"
+    user_username = update.message.from_user.username or "Unknown"
     user_telegram_id = update.message.from_user.id
 
     # Fetch the user's document from MongoDB
     user = users_collection.find_one({"telegramId": user_telegram_id})
-
-    if not user:
-        await update.message.reply_text("User not found. Please complete your profile first!")
-        return
-
     # Use the displayName from MongoDB, or fallback to first_name if not available
     user_display_name = user.get("displayName", update.message.from_user.first_name or "Unknown")
 
-    # Craft the message with a personalized greeting
+    
+    # Craft the message with a personalized greeting and the web app button
     edit_profile_message = (
         f"Hi {user_display_name}! Click on the respective buttons below to edit bio or match preferences!"
     )
-
-    # Create two buttons: one for editing bio and one for editing match preferences
-    keyboard = [
-        [InlineKeyboardButton("Edit Bio", web_app={'url': 'https://webapp-profile-sportsfinder.vercel.app/'})],
-        [InlineKeyboardButton("Edit Match Preferences", web_app={'url': 'https://webapp-matchpreferences-sportsfinder.vercel.app/'})]
-    ]
+    
+    # Create the web app button for editing profile
+    keyboard = [[InlineKeyboardButton("Edit Profile", web_app={'url': 'https://webapp-profile-sportsfinder.vercel.app/'})]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Send the message with the buttons
+    # Send the message with the button
     await update.message.reply_text(
         edit_profile_message,
         reply_markup=reply_markup
@@ -192,35 +188,12 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         {"$set": {"wantToBeMatched": True, "selectedSport": sport}}
     )
 
-    # Extract User A's match preferences for the selected sport
-    match_preferences = user.get("matchPreferences", {}).get(sport, {})
-    age_range = match_preferences.get("ageRange", [18, 100])  # Default age range if not specified
-    gender_preference = match_preferences.get("genderPreference", None)
-    skill_levels = match_preferences.get("skillLevels", [])
-    location_preferences = match_preferences.get("locationPreferences", [])
-
-    # Build the query to find a potential match
-    query_filter = {
+    # Find an ideal match based on users who also want to be matched for the same sport
+    potential_match = users_collection.find_one({
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True,  # Only match with users who want to be matched
-        "selectedSport": sport,  # Match for the same sport
-        "age": {"$gte": age_range[0], "$lte": age_range[1]},  # Age within the specified range
-    }
-
-    # Add gender preference to the query if specified
-    if gender_preference:
-        query_filter["gender"] = gender_preference
-
-    # Add skill level to the query if specified
-    if skill_levels:
-        query_filter[f"sports.{sport}"] = {"$in": skill_levels}
-
-    # Add location preferences to the query if specified
-    if location_preferences:
-        query_filter["location"] = {"$in": location_preferences}
-
-    # Find the first user who matches all the criteria
-    potential_match = users_collection.find_one(query_filter)
+        "selectedSport": sport  # Match for the same sport
+    })
 
     if not potential_match:
         await context.bot.send_message(
@@ -242,7 +215,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Update users as matched in pymongo and reset wantToBeMatched to False
     users_collection.update_many(
-        {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}},
+        {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}} ,
         {"$set": {"isMatched": True, "wantToBeMatched": False}}  # Set wantToBeMatched to False after matching
     )
 
@@ -609,6 +582,28 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
         print(f"Error in no_game_reason_response: {e}")
         await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
 
+# Function to handle /feedback command
+async def feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Provide any feedback/reports here! Every response is greatly appreciated and every single one of them will be read!"
+    )
+
+# Function to handle user feedback messages
+async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    feedback_text = update.message.text
+
+    # Save feedback to MongoDB
+    feedback_data = {
+        "username": user.username,
+        "user_id": user.id,
+        "feedback": feedback_text
+    }
+    feedback_collection.insert_one(feedback_data)
+
+    # Send a thank-you message
+    await update.message.reply_text("Thanks for your feedback!")
+
 # Helper functions
 def is_profile_complete(user):
     """Check if the user's profile is complete."""
@@ -635,6 +630,10 @@ application.add_handler(matchme_handler)
 endmatch_handler = CommandHandler('endmatch', end_match)
 application.add_handler(endmatch_handler)
 
+# Register the /feedback command handler
+feedback_handler = CommandHandler('feedback', feedback)
+application.add_handler(feedback_handler)
+
 message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, forward_message)
 application.add_handler(message_handler)
 
@@ -649,5 +648,8 @@ application.add_handler(CallbackQueryHandler(bot_experience_response, pattern="^
 application.add_handler(CallbackQueryHandler(user_experience_response, pattern="^user_experience_"))
 application.add_handler(CallbackQueryHandler(no_game_reason_response, pattern="^no_game_reason_"))
 
+# Register the feedback message handler
+feedback_message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_feedback)
+application.add_handler(feedback_message_handler)
 # Start the bot
 application.run_polling()
