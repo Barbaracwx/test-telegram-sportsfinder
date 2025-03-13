@@ -185,6 +185,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Retrieve the current user's match preferences for the selected sport
     match_preferences = user.get("matchPreferences", {})
     print("Match Preferences:", match_preferences)  # Print match preferences
+    print("Type of match_preferences:", type(match_preferences))  # Check type
     sport_preferences = match_preferences.get(sport, {})
     print("Sport Preferences for", sport, ":", sport_preferences)
     
