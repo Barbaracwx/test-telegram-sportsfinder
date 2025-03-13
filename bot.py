@@ -236,18 +236,40 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         potential_match_sports = potential_match.get("sports", {})
         print("Type of potential match sports:", type(potential_match_sports))  # Check type
         potential_match_skill_level = potential_match_sports.get(sport, "Unknown")  # Default to "Unknown
+        potential_match_age = int(potential_match.get("age", 0))
 
         print("\n➡️ Checking potential match:", potential_match.get("username", "Unknown"))
         print("  - Gender:", potential_match.get("gender"))
-        print("  - Age:", potential_match.get("age"))
+        print("  - Age:", potential_match_age)
         print(f"Potential Match's Skill Level for {sport}: {potential_match_skill_level}")
         print("  - Location:", potential_match.get("location"))
 
         #the data types
         print("Type of potential_match['gender']:", type(potential_match.get("gender")))
-        print("Type of potential_match['age']:", type(potential_match.get("age")))
+        print("Type of potential_match['age']:", type(potential_match_age))
         print("Type of potential_match['skillLevel']:", type(potential_match_skill_level))
         print("Type of potential_match['location']:", type(potential_match.get("location")))
+
+        # Evaluate each condition separately
+        gender_condition = (gender_preference == "No preference" or potential_match.get("gender") == gender_preference)
+        age_condition = (age_range[0] <= potential_match.get("age", 0) <= age_range[1])
+        skill_level_condition = (not skill_levels or potential_match.get("skillLevel") in skill_levels)
+        location_condition = (not location_preferences or potential_match.get("location") in location_preferences)
+
+        # Print the result of each condition
+        print("\nChecking Conditions:")
+        print("  - Gender Condition:", gender_condition)
+        print("  - Age Condition:", age_condition)
+        print("  - Skill Level Condition:", skill_level_condition)
+        print("  - Location Condition:", location_condition)
+
+        # Check if all conditions are met
+        if gender_condition and age_condition and skill_level_condition and location_condition:
+            print("All conditions matched! Proceeding with the match.")
+            # Create a match entry and notify both users
+            # (Add your match creation logic here)
+        else:
+            print("One or more conditions did not match. Skipping this potential match.")
 
         # Check if the potential match's data matches the current user's preferences
         if (
