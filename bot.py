@@ -202,6 +202,14 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sport_preferences = match_preferences.get(sport, {})
     print("Sport Preferences for", sport, ":", sport_preferences)
     print("Type of sports preferences:", type(sport_preferences))  # Check type
+
+    # Extract preferences
+    age_range = sport_preferences.get("ageRange", [1, 100])  # Default age range if not specified
+    gender_preference = sport_preferences.get("genderPreference", "No preference")
+    skill_levels = sport_preferences.get("skillLevels", [])
+    location_preferences = sport_preferences.get("locationPreferences", [])
+
+    print(f"Current user's preferences for {sport}: Age={age_range}, Gender={gender_preference}, Skills={skill_levels}, Locations={location_preferences}")  # Debugging
     
     # Send the "Gotcha! Sportsfinding for you..." message
     await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
