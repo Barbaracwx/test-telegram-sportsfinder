@@ -231,11 +231,16 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "wantToBeMatched": True,  # Only match with users who want to be matched
         "selectedSport": sport,  # Match for the same sport
     }):
+        
+        # Extract the skill level for the selected sport from the potential match's sports data
+        potential_match_sports = potential_match.get("sports", {})
+        print("Type of potential match sports:", type(potential_match_sports))  # Check type
+        potential_match_skill_level = potential_match_sports.get(sport, "Unknown")  # Default to "Unknown
 
         print("\n➡️ Checking potential match:", potential_match.get("username", "Unknown"))
         print("  - Gender:", potential_match.get("gender"))
         print("  - Age:", potential_match.get("age"))
-        print("  - Skill Level:", potential_match.get("skillLevel"))
+        print(f"Potential Match's Skill Level for {sport}: {potential_match_skill_level}")
         print("  - Location:", potential_match.get("location"))
 
         # Check if the potential match's data matches the current user's preferences
