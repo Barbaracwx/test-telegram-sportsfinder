@@ -263,6 +263,11 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("  - Skill Level Condition:", skill_level_condition)
         print("  - Location Condition:", location_condition)
 
+        print("Current User's Skill Levels:", skill_levels)
+        print("Potential Match's Skill Level:", potential_match.get("skillLevel"))
+        print("Current User's Location Preferences:", location_preferences)
+        print("Potential Match's Location:", potential_match.get("location"))
+
         # Check if all conditions are met
         if gender_condition and age_condition and skill_level_condition and location_condition:
             print("All conditions matched! Proceeding with the match.")
