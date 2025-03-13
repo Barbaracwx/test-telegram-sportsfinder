@@ -201,6 +201,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     sport_preferences = match_preferences.get(sport, {})
     print("Sport Preferences for", sport, ":", sport_preferences)
+    print("Type of sports preferences:", type(sport_preferences))  # Check type
     
     # Send the "Gotcha! Sportsfinding for you..." message
     await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
