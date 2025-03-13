@@ -11,6 +11,7 @@ from telegram.ext import (
     ContextTypes,  # Import ContextTypes
 )
 from bson import ObjectId
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -186,6 +187,18 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     match_preferences = user.get("matchPreferences", {})
     print("Match Preferences:", match_preferences)  # Print match preferences
     print("Type of match_preferences:", type(match_preferences))  # Check type
+
+    # Convert from string to dictionary 
+    if isinstance(match_preferences, str):
+        try:
+            match_preferences = json.loads(match_preferences)  # Convert JSON string to dictionary
+        except json.JSONDecodeError:
+            print("Error: matchPreference is not a valid JSON format.")
+            match_preferences = {}  # Fallback to an empty dictionary
+
+    print("Match Preferences:", match_preferences)
+    print("Type of match_preferences after conversion:", type(match_preferences))  
+
     sport_preferences = match_preferences.get(sport, {})
     print("Sport Preferences for", sport, ":", sport_preferences)
     
