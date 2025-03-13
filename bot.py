@@ -254,7 +254,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         gender_condition = (gender_preference == "No preference" or potential_match.get("gender") == gender_preference)
         age_condition = (age_range[0] <= potential_match.get("age", 0) <= age_range[1])
         skill_level_condition = (not skill_levels or potential_match_skill_level in skill_levels)
-        location_condition = (not location_preferences or potential_match.get("location") in location_preferences)
+        location_condition = (not location_preferences or any(loc in location_preferences for loc in potential_match.get("location", [])))
 
         # Print the result of each condition
         print("\nChecking Conditions:")
