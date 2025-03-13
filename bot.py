@@ -182,14 +182,11 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("User not found.")
         return
     
-    match_preferences = user.get("matchPreferences", {})
-    print("Match Preferences:", match_preferences)  # Debug statement
-
+    # Retrieve the current user's match preferences for the selected sport
+    match_preferences = user.get("matchPreference", {})
+    print("Match Preferences:", match_preferences)  # Print match preferences
     sport_preferences = match_preferences.get(sport, {})
-    print("Sport Preferences:", sport_preferences)  # Debug statement
-
-    gender = sport_preferences.get("genderPreference", "No preference")
-    print("Gender Preference:", gender)  # Debug statement
+    print("Sport Preferences for", sport, ":", sport_preferences)
     
     # Send the "Gotcha! Sportsfinding for you..." message
     await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
@@ -205,7 +202,6 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True,  # Only match with users who want to be matched
         "selectedSport": sport,  # Match for the same sport
-        "gender": gender,
     })
 
     if not potential_match:
