@@ -225,44 +225,67 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     # Find an ideal match based on users who also want to be matched for the same sport
-    potential_match = users_collection.find_one({
+    # Iterate through the users_collection to find a suitable match
+    for potential_match in users_collection.find({
         "telegramId": {"$ne": user_telegram_id},  # Not the same user
         "wantToBeMatched": True,  # Only match with users who want to be matched
         "selectedSport": sport,  # Match for the same sport
-    })
+    }):
+        # Check if the potential match's data matches the current user's preferences
+        if (
+            (gender_preference == "No preference" or potential_match.get("gender") == gender_preference) and
+            (age_range[0] <= potential_match.get("age", 0) <= age_range[1]) and
+            (not skill_levels or potential_match.get("skillLevel") in skill_levels) and
+            (not location_preferences or potential_match.get("location") in location_preferences)
+        ):
+            # Now, check if the current user's data matches the potential match's preferences
+            potential_match_preferences = potential_match.get("matchPreference", {})
+            potential_sport_preferences = potential_match_preferences.get(sport, {})
+            
+            potential_age_range = potential_sport_preferences.get("ageRange", [1, 100])
+            potential_gender_preference = potential_sport_preferences.get("genderPreference", "No preference")
+            potential_skill_levels = potential_sport_preferences.get("skillLevels", [])
+            potential_location_preferences = potential_sport_preferences.get("locationPreferences", [])
 
-    if not potential_match:
-        await context.bot.send_message(
-            chat_id=user_telegram_id,
-            text=f"No match found for {sport} at the moment. Please wait for a match!"
-        )
-        return
+            if (
+                (potential_gender_preference == "No preference" or user.get("gender") == potential_gender_preference) and
+                (potential_age_range[0] <= user.get("age", 0) <= potential_age_range[1]) and
+                (not potential_skill_levels or user.get("skillLevel") in potential_skill_levels) and
+                (not potential_location_preferences or user.get("location") in potential_location_preferences)
+            ):
+                # A suitable match has been found
+                # Create a match entry using pymongo, including usernames for both users
+                match_document = {
+                    "userAId": user_telegram_id,
+                    "userBId": potential_match["telegramId"],
+                    "userAUsername": user.get("username", "Unknown"),
+                    "userBUsername": potential_match.get("username", "Unknown"),
+                    "sport": sport,
+                    "status": "active"
+                }
+                matches_collection.insert_one(match_document)
 
-    # Create a match entry using pymongo, including usernames for both users
-    match_document = {
-        "userAId": user_telegram_id,
-        "userBId": potential_match["telegramId"],
-        "userAUsername": user.get("username", "Unknown"),
-        "userBUsername": potential_match.get("username", "Unknown"),
-        "sport": sport,
-        "status": "active"
-    }
-    matches_collection.insert_one(match_document)
+                # Update users as matched in pymongo and reset wantToBeMatched to False
+                users_collection.update_many(
+                    {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}} ,
+                    {"$set": {"isMatched": True, "wantToBeMatched": False}}  # Set wantToBeMatched to False after matching
+                )
 
-    # Update users as matched in pymongo and reset wantToBeMatched to False
-    users_collection.update_many(
-        {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}} ,
-        {"$set": {"isMatched": True, "wantToBeMatched": False}}  # Set wantToBeMatched to False after matching
-    )
+                # Send the match info to the users
+                await context.bot.send_message(
+                    chat_id=user_telegram_id,
+                    text=f"You have been matched with {potential_match.get('displayName', 'Unknown')} for {sport}! 🎉"
+                )
+                await context.bot.send_message(
+                    chat_id=potential_match["telegramId"],
+                    text=f"You have been matched with {user.get('displayName', 'Unknown')} for {sport}! 🎉"
+                )
+                return  # Exit the function after a match is found
 
-    # Send the match info to the users
+    # If no suitable match is found after iterating through all users
     await context.bot.send_message(
         chat_id=user_telegram_id,
-        text=f"You have been matched with {potential_match.get('displayName', 'Unknown')} for {sport}! 🎉"
-    )
-    await context.bot.send_message(
-        chat_id=potential_match["telegramId"],
-        text=f"You have been matched with {user.get('displayName', 'Unknown')} for {sport}! 🎉"
+        text=f"No match found for {sport} at the moment. Please wait for a match!"
     )
 
 # /endmatch function
