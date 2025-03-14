@@ -310,6 +310,25 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print("skill level for potential match", sport, ":", potential_skill_levels)
             print("location for potential match", sport, ":", potential_location_preferences)
 
+            #user skill level for selected sport
+            user_sports = user.get("sports", {})  # Extract user's sports dictionary
+            print("Type of user sports:", type(user_sports))  # Check type
+            user_skill_level = user_sports.get(sport, "Unknown")  # Default to "Unknown" if sport is not found
+            user_age = int(user.get("age", 0))  # Extract user's age
+
+            # Evaluate each condition separately
+            potential_gender_condition = (potential_gender_preference == "No preference" or user.get("gender") == potential_gender_preference)
+            potential_age_condition = (potential_age_range[0] <= user_age <= potential_age_range[1])
+            potential_skill_level_condition = (not potential_skill_levels or user_skill_level in potential_skill_levels)
+            potential_location_condition = (not potential_location_preferences or any(loc in potential_location_preferences for loc in user.get("location", [])))
+
+            # Print the result of each condition (second pairing)
+            print("\nChecking Conditions:")
+            print("  - Gender Condition:", potential_gender_condition)
+            print("  - Age Condition:", potential_age_condition)
+            print("  - Skill Level Condition:", potential_skill_level_condition)
+            print("  - Location Condition:", potential_location_condition)
+
             if (
                 (potential_gender_preference == "No preference" or user.get("gender") == potential_gender_preference) and
                 (potential_age_range[0] <= user.get("age", 0) <= potential_age_range[1]) and
