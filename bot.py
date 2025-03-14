@@ -748,7 +748,16 @@ FEEDBACK = 1
 
 # Command handler for /feedback
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Prompt the user to provide feedback."""
+    user_telegram_id = update.message.from_user.id
+    user = users_collection.find_one({"telegramID": user_telegram_id})
+
+    # Check if the user is in a match
+    if user.get("isMatched", False):
+        await update.message.reply_text(
+            "You are currently in a match. End the match before providing feedback."
+        )
+        return  # Do not start the feedback conversation
+    
     print("/feedback command triggered")  # Debugging print
     await update.message.reply_text("Provide any feedback/ reports here! Every response is greatly appreciated and every single one of them will be read! Type below:")
     context.user_data["feedback_state"] = FEEDBACK  # Debugging: Track state in user_data
