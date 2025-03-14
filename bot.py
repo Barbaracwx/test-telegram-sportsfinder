@@ -663,6 +663,7 @@ async def other_feedback_yes(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         # Prompt the user to type their feedback
         await query.edit_message_text("Please type your additional feedback below:")
+        print(f"Transitioning to OTHER_FEEDBACK state for user {user_telegram_id}")  # Debugging print
         return OTHER_FEEDBACK  # Move to the OTHER_FEEDBACK state
 
     except Exception as e:
@@ -703,6 +704,9 @@ async def receive_other_feedback(update: Update, context: ContextTypes.DEFAULT_T
         user_feedback = update.message.text  # Get the user's feedback
         user_telegram_id = update.message.from_user.id
         user_username = update.message.from_user.username
+
+        print(f"Received additional feedback from user {user_telegram_id}: {user_feedback}")  # Debugging print
+
 
         # Save the feedback to MongoDB (or any other storage)
         feedback_collection.insert_one({
@@ -891,6 +895,7 @@ def setup_handlers(application):
 
     # Add the feedback conversation handler to the application
     application.add_handler(feedback_conv_handler)
+
     # Add callback query handlers for other feedback
     application.add_handler(CallbackQueryHandler(other_feedback_yes, pattern="^other_feedback_yes_"))
     application.add_handler(CallbackQueryHandler(other_feedback_no, pattern="^other_feedback_no_"))
