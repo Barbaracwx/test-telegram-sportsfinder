@@ -297,16 +297,17 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print("location for potential match", sport, ":", potential_location_preferences, "| Type:", type(potential_location_preferences))
 
             #user own data
-            user_age = user.get("age", None)  # Default to None if not found
+            user_age = int(user.get("age", 0))  # Extract user's age
             user_gender = user.get("gender", None)
-            user_skill_level = user.get("skills", {}).get(sport, None)  # Extract skill level for the specific sport
+            user_sports = user.get("sports", {})  # Extract user's sports dictionary
+            user_skill_level = user_sports.get(sport, "Unknown")  # Default to "Unknown" if sport is not found
             user_location = user.get("location", None)
             # Print function that includes both values and their types
             print("User Data Extraction:")
             print(f"Age: {user_age} (Type: {type(user_age).__name__})")
             print(f"Gender: {user_gender} (Type: {type(user_gender).__name__})")
             print(f"Skill Level for {sport}: {user_skill_level} (Type: {type(user_skill_level).__name__})")
-            print(f"Location: {user_location} (Type: {type(user_location).__name__})")
+            print(f"Location: {user_location} (Type: {type(user_location).__name__})")          
 
         else:
             print("One or more conditions did not match. Skipping this potential match.")
