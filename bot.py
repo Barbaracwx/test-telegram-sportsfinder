@@ -888,7 +888,7 @@ def setup_handlers(application):
         entry_points=[CommandHandler("feedback", feedback_command)],  # Start with /feedback
         states={
             FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_feedback)],  # Wait for user input
-            OTHER_FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_other_feedback)],  # Wait for additional feedback
+            OTHER_FEEDBACK: [MessageHandler(filters.ALL, receive_other_feedback)],  # Wait for additional feedback
         },
         fallbacks=[CommandHandler("cancel", cancel_feedback)],
     )
