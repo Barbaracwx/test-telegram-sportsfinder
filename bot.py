@@ -307,7 +307,21 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"Age: {user_age} (Type: {type(user_age).__name__})")
             print(f"Gender: {user_gender} (Type: {type(user_gender).__name__})")
             print(f"Skill Level for {sport}: {user_skill_level} (Type: {type(user_skill_level).__name__})")
-            print(f"Location: {user_location} (Type: {type(user_location).__name__})")          
+            print(f"Location: {user_location} (Type: {type(user_location).__name__})")       
+
+            # Evaluate each condition separately
+            potential_gender_condition = (potential_gender_preference == "No preference" or user.get("gender") == potential_gender_preference)
+            potential_age_condition = (potential_age_range[0] <= user_age <= potential_age_range[1])
+            potential_skill_level_condition = (not potential_skill_levels or user_skill_level in potential_skill_levels)
+            potential_location_condition = (not potential_location_preferences or any(loc in potential_location_preferences for loc in user.get("location", [])))
+
+
+            # Print the result of each condition (second pairing)
+            print("Checking Conditions for potential match: (the first if statement)")
+            print("➡️➡️➡️Gender Condition:", potential_gender_condition)
+            print("➡️➡️➡️Age Condition:", potential_age_condition)
+            print("➡️➡️➡️Skill Level Condition:", potential_skill_level_condition)
+            print("➡️➡️➡️Location Condition:", potential_location_condition) 
 
         else:
             print("One or more conditions did not match. Skipping this potential match.")
