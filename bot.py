@@ -185,8 +185,6 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Retrieve the current user's match preferences for the selected sport
     match_preferences = user.get("matchPreferences", {})
-    print("Match Preferences:", match_preferences)  # Print match preferences
-    print("Type of match_preferences:", type(match_preferences))  # Check type
 
     # Convert from string to dictionary 
     if isinstance(match_preferences, str):
@@ -196,12 +194,10 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print("Error: matchPreference is not a valid JSON format.")
             match_preferences = {}  # Fallback to an empty dictionary
 
-    print("Match Preferences:", match_preferences)
-    print("Type of match_preferences after conversion:", type(match_preferences))  
+    print("Match Preferences:", match_preferences) 
 
     sport_preferences = match_preferences.get(sport, {})
     print("Sport Preferences for", sport, ":", sport_preferences)
-    print("Type of sports preferences:", type(sport_preferences))  # Check type
 
     # Extract preferences
     age_range = sport_preferences.get("ageRange", [1, 100])  # Default age range if not specified
@@ -210,10 +206,6 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     location_preferences = sport_preferences.get("locationPreferences", [])
 
     print(f"Current user's preferences for {sport}: Age={age_range}, Gender={gender_preference}, Skills={skill_levels}, Locations={location_preferences}")  # Debugging
-    print("Type for age", type(age_range))  # Check type
-    print("Type for gender", type(gender_preference))
-    print("Type for skills", type(skill_levels))
-    print("Type for locations", type(location_preferences))
     
     # Send the "Gotcha! Sportsfinding for you..." message
     await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
@@ -234,21 +226,14 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Extract the skill level for the selected sport from the potential match's sports data
         potential_match_sports = potential_match.get("sports", {})
-        print("Type of potential match sports:", type(potential_match_sports))  # Check type
         potential_match_skill_level = potential_match_sports.get(sport, "Unknown")  # Default to "Unknown
         potential_match_age = int(potential_match.get("age", 0))
 
         print("\n➡️ Checking potential match:", potential_match.get("username", "Unknown"))
         print("  - Gender:", potential_match.get("gender"))
         print("  - Age:", potential_match_age)
-        print(f"Potential Match's Skill Level for {sport}: {potential_match_skill_level}")
+        print(f"  - Skill Level for {sport}: {potential_match_skill_level}")
         print("  - Location:", potential_match.get("location"))
-
-        #the data types
-        print("Type of potential_match['gender']:", type(potential_match.get("gender")))
-        print("Type of potential_match['age']:", type(potential_match_age))
-        print("Type of potential_match['skillLevel']:", type(potential_match_skill_level))
-        print("Type of potential_match['location']:", type(potential_match.get("location")))
 
         # Evaluate each condition separately
         gender_condition = (gender_preference in ["No preference", "Either"] or potential_match.get("gender") == gender_preference)
@@ -263,11 +248,6 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("  - Skill Level Condition:", skill_level_condition)
         print("  - Location Condition:", location_condition)
 
-        print("Current User's Skill Levels:", skill_levels)
-        print("Potential Match's Skill Level:", potential_match_skill_level)
-        print("Current User's Location Preferences:", location_preferences)
-        print("Potential Match's Location:", potential_match.get("location"))
-
         if gender_condition and age_condition and skill_level_condition and location_condition:
             print("All conditions matched! Proceeding with the match. (first if block)")
             potential_match_preferences = potential_match.get("matchPreferences", {})
@@ -280,10 +260,8 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     potential_match_preferences = {}  # Fallback to an empty dictionary
 
             print("Match Preferences for potential match:", potential_match_preferences)  # Print match preferences
-            print("Type of match_preferences for potential match:", type(potential_match_preferences))  # Check type
             potential_sport_preferences = potential_match_preferences.get(sport, {})
             print("Sport Preferences for potential match", sport, ":", potential_sport_preferences)
-            print("Type of sports preferences:", type(potential_sport_preferences))  # Check type
 
             # extract out the potential match preferences
             #the 4 conditions to match (check potential match preferences to current user data)
@@ -291,10 +269,10 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             potential_gender_preference = potential_sport_preferences.get("genderPreference", "No preference")
             potential_skill_levels = potential_sport_preferences.get("skillLevels", [])
             potential_location_preferences = potential_sport_preferences.get("locationPreferences", [])
-            print("age range for potential match", sport, ":", potential_age_range, "| Type:", type(potential_age_range))
-            print("gender preferences for potential match", sport, ":", potential_gender_preference, "| Type:", type(potential_gender_preference))
-            print("skill level for potential match", sport, ":", potential_skill_levels, "| Type:", type(potential_skill_levels))
-            print("location for potential match", sport, ":", potential_location_preferences, "| Type:", type(potential_location_preferences))
+            print("potential match match preferences: age range", sport, ":", potential_age_range, "| Type:", type(potential_age_range))
+            print("potential match match preferences: gender preferences", sport, ":", potential_gender_preference, "| Type:", type(potential_gender_preference))
+            print("potential match match preferences: skill level", sport, ":", potential_skill_levels, "| Type:", type(potential_skill_levels))
+            print("potential match match preferences: location", sport, ":", potential_location_preferences, "| Type:", type(potential_location_preferences))
 
             #user own data
             user_age = int(user.get("age", 0))  # Extract user's age
@@ -317,7 +295,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
             # Print the result of each condition (second pairing)
-            print("Checking Conditions for potential match: (the first if statement)")
+            print("Checking Conditions for potential match:")
             print(":) Gender Condition:", potential_gender_condition)
             print(":) Age Condition:", potential_age_condition)
             print(":) Skill Level Condition:", potential_skill_level_condition)
