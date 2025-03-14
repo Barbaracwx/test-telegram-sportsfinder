@@ -8,10 +8,13 @@ from telegram.ext import (
     filters,
     Application,
     CallbackQueryHandler,
+    ConversationHandler,
     ContextTypes,  # Import ContextTypes
 )
 from bson import ObjectId
 import json
+import datetime
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -695,6 +698,8 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
         print(f"Error in no_game_reason_response: {e}")
         await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
 
+
+
 # Helper functions
 def is_profile_complete(user):
     """Check if the user's profile is complete."""
@@ -736,6 +741,53 @@ async def are_preferences_complete(update: Update, user):
         return False  # Not all sports have match preferences
 
     return True  # All sports have match preferences
+
+#for feedback
+# Define states for the feedback conversation
+FEEDBACK = 1
+
+# Command handler for /feedback
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Prompt the user to provide feedback."""
+    await update.message.reply_text("What feedback do you want to say? Type below:")
+    return FEEDBACK  # Move to the FEEDBACK state
+
+# Message handler for receiving feedback
+async def receive_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive the user's feedback and acknowledge it."""
+    user_feedback = update.message.text  # Get the user's message
+    user_telegram_id = update.message.from_user.id
+
+    # Save the feedback to MongoDB
+    feedback_collection.insert_one({
+        "telegramId": user_telegram_id,
+        "feedback": user_feedback,
+        "timestamp": datetime.datetime.now()
+    })
+
+    # Acknowledge the feedback
+    await update.message.reply_text("Thanks for your feedback!")
+    return ConversationHandler.END  # End the conversation
+
+# Fallback handler to cancel the conversation
+async def cancel_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the feedback conversation."""
+    await update.message.reply_text("Feedback process cancelled.")
+    return ConversationHandler.END
+
+# Define the setup_handlers function
+def setup_handlers(application):
+    # Feedback conversation handler
+    feedback_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("feedback", feedback_command)],  # Start with /feedback
+        states={
+            FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_feedback)],  # Wait for user input
+        },
+        fallbacks=[CommandHandler("cancel", cancel_feedback)],  # Allow the user to cancel
+    )
+
+    # Add the feedback conversation handler to the application
+    application.add_handler(feedback_conv_handler)
 
 
 # Register the /start, /matchme, /endmatch command handlers and the message handler for forwarding messages
