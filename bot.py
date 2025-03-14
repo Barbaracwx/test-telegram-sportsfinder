@@ -730,7 +730,8 @@ async def are_preferences_complete(update: Update, user):
     if missing_sports:
         missing_sports_list = ", ".join(missing_sports)
         await update.message.reply_text(
-            f"Please complete your match preferences for the following sports: {missing_sports_list}"
+            f"You haven’t selected match preferences for {missing_sports_list}! Use /profile to add in your match preferences before finding a match!"
+
         )
         return False  # Not all sports have match preferences
 
