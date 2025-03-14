@@ -748,12 +748,11 @@ FEEDBACK = 1
 
 # Command handler for /feedback
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_telegram_id = update.message.from_user.id
-    user = users_collection.find_one({"telegramID": user_telegram_id})
+    user_telegram_id = int(update.message.from_user.id)  # Ensure it's an integer
+    user = users_collection.find_one({"telegramId": user_telegram_id})
 
     print(f"User Telegram ID: {user_telegram_id}")  # Print the Telegram user ID
     print(f"Fetched user from DB: {user}")  # Print the user object
-
 
     # Check if the user is in a match
     if user.get("isMatched", False):
