@@ -268,6 +268,25 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("Current User's Location Preferences:", location_preferences)
         print("Potential Match's Location:", potential_match.get("location"))
 
+        if potential_gender_condition and potential_age_condition and potential_skill_level_condition and potential_location_condition:
+            print("All conditions matched! Proceeding with the match. (first if block)")
+            potential_match_preferences = potential_match.get("matchPreferences", {})
+            # Convert from string to dictionary 
+            if isinstance(potential_match_preferences, str):
+                try:
+                    potential_match_preferences = json.loads(potential_match_preferences)  # Convert JSON string to dictionary
+                except json.JSONDecodeError:
+                    print("Error: potential matchPreference is not a valid JSON format.")
+                    potential_match_preferences = {}  # Fallback to an empty dictionary
+
+            print("Match Preferences for potential match:", potential_match_preferences)  # Print match preferences
+            print("Type of match_preferences for potential match:", type(potential_match_preferences))  # Check type
+            potential_sport_preferences = potential_match_preferences.get(sport, {})
+            print("Sport Preferences for potential match", sport, ":", potential_sport_preferences)
+            print("Type of sports preferences:", type(potential_sport_preferences))  # Check type
+        else:
+            print("One or more conditions did not match. Skipping this potential match.")
+
         # Check if the potential match's data matches the current user's preferences
         if (
             gender_condition and age_condition and skill_level_condition and location_condition
