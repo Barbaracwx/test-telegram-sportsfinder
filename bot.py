@@ -286,6 +286,15 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             potential_match_preferences = potential_match.get("matchPreference", {})
             print("Match Preferences for potential match:", potential_match_preferences)  # Print match preferences
             print("Type of match_preferences for potential match:", type(potential_match_preferences))  # Check type
+
+            # Convert from string to dictionary 
+            if isinstance(potential_match_preferences, str):
+                try:
+                    potential_match_preferences = json.loads(potential_match_preferences)  # Convert JSON string to dictionary
+                except json.JSONDecodeError:
+                    print("Error: potential matchPreference is not a valid JSON format.")
+                    potential_match_preferences = {}  # Fallback to an empty dictionary
+
             potential_sport_preferences = potential_match_preferences.get(sport, {})
             
             potential_age_range = potential_sport_preferences.get("ageRange", [1, 100])
