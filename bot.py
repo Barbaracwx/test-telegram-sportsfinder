@@ -141,7 +141,7 @@ async def match_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Check if the match preferences are complete
-    if not are_preferences_complete(update, user):
+    if not await are_preferences_complete(update, user):
         return
 
     # Check if the user is already matched
@@ -701,16 +701,13 @@ def is_profile_complete(user):
     required_fields = ["age", "gender", "location", "sports"]
     return all(user.get(field) for field in required_fields)
 
-def are_preferences_complete(user):
-    """Check if the user's match preferences are complete."""
-    return bool(user.get("matchPreferences"))
-
 async def are_preferences_complete(update: Update, user):
     """Check if the user's match preferences include all their sports."""
     
     # Extract user's sports and matchPreferences (ensuring matchPreferences is always a dictionary)
     sports = user.get("sports", [])  # Ensure we have a list of sports
-    print("all sports user selected: ", sports , type(sports))
+    print("all sports user selected: ", sports, type(sports))
+    
     # Retrieve the current user's match preferences for the selected sport
     match_preferences = user.get("matchPreferences", {})
 
@@ -720,16 +717,17 @@ async def are_preferences_complete(update: Update, user):
             match_preferences = json.loads(match_preferences)  # Convert JSON string to dictionary
         except json.JSONDecodeError:
             print("Error: matchPreference is not a valid JSON format.")
-            match_preferences = {}  # Fallback to an empty dictionary
+            await update.message.reply_text("Your match preferences are not in a valid format. Please update them.")
+            return False  # Return False if the JSON is invalid
 
-    print("match preferences of the user",match_preferences, type(match_preferences))
+    print("match preferences of the user", match_preferences, type(match_preferences))
 
     # Find sports that are missing from matchPreferences
     missing_sports = [sport for sport in sports if sport not in match_preferences]
     print("missing sports: ", missing_sports)
 
     # If there are missing sports, inform the user to complete their preferences
-    if missing_sports := [sport for sport in sports if sport not in match_preferences]:
+    if missing_sports:
         missing_sports_list = ", ".join(missing_sports)
         await update.message.reply_text(
             f"Please complete your match preferences for the following sports: {missing_sports_list}"
