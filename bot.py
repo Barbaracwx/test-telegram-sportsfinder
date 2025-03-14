@@ -710,6 +710,7 @@ async def are_preferences_complete(update: Update, user):
     
     # Extract user's sports and matchPreferences (ensuring matchPreferences is always a dictionary)
     sports = user.get("sports", [])  # Ensure we have a list of sports
+    print("all sports user selected: ", sports , type(sports))
     # Retrieve the current user's match preferences for the selected sport
     match_preferences = user.get("matchPreferences", {})
 
@@ -721,8 +722,11 @@ async def are_preferences_complete(update: Update, user):
             print("Error: matchPreference is not a valid JSON format.")
             match_preferences = {}  # Fallback to an empty dictionary
 
+    print("match preferences of the user",match_preferences, type(match_preferences))
+
     # Find sports that are missing from matchPreferences
     missing_sports = [sport for sport in sports if sport not in match_preferences]
+    print("missing sports: ", missing_sports)
 
     # If there are missing sports, inform the user to complete their preferences
     if missing_sports := [sport for sport in sports if sport not in match_preferences]:
