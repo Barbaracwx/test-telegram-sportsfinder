@@ -269,7 +269,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("Potential Match's Location:", potential_match.get("location"))
 
         # Check if all conditions are met
-        if gender_condition and age_condition and skill_level_condition and location_condition:
+        if (gender_condition and age_condition and skill_level_condition and location_condition):
             print("All conditions matched! Proceeding with the match.")
             # Create a match entry and notify both users
             # (Add your match creation logic here)
@@ -284,8 +284,6 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Now, check if the current user's data matches the potential match's preferences
             potential_match_preferences = potential_match.get("matchPreference", {})
-            print("Match Preferences for potential match:", potential_match_preferences)  # Print match preferences
-            print("Type of match_preferences for potential match:", type(potential_match_preferences))  # Check type
 
             # Convert from string to dictionary 
             if isinstance(potential_match_preferences, str):
@@ -295,7 +293,13 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     print("Error: potential matchPreference is not a valid JSON format.")
                     potential_match_preferences = {}  # Fallback to an empty dictionary
 
+            print("Match Preferences for potential match:", potential_match_preferences)  # Print match preferences
+            print("Type of match_preferences for potential match:", type(potential_match_preferences))  # Check type
+
             potential_sport_preferences = potential_match_preferences.get(sport, {})
+            print("Sport Preferences for potential match", sport, ":", potential_sport_preferences)
+            print("Type of sports preferences:", type(potential_sport_preferences))  # Check type
+
             
             potential_age_range = potential_sport_preferences.get("ageRange", [1, 100])
             potential_gender_preference = potential_sport_preferences.get("genderPreference", "No preference")
