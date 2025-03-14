@@ -268,20 +268,12 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("Current User's Location Preferences:", location_preferences)
         print("Potential Match's Location:", potential_match.get("location"))
 
-        # Check if all conditions are met
-        if (gender_condition and age_condition and skill_level_condition and location_condition):
-            print("All conditions matched! Proceeding with the match.")
-            # Create a match entry and notify both users
-            # (Add your match creation logic here)
-        else:
-            print("One or more conditions did not match. Skipping this potential match.")
-
         # Check if the potential match's data matches the current user's preferences
         if (
             gender_condition and age_condition and skill_level_condition and location_condition
 
         ):
-
+            print("All conditions matched! Proceeding with the second match.")
             # Now, check if the current user's data matches the potential match's preferences
             potential_match_preferences = potential_match.get("matchPreferences", {})
 
@@ -322,8 +314,13 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             potential_skill_level_condition = (not potential_skill_levels or user_skill_level in potential_skill_levels)
             potential_location_condition = (not potential_location_preferences or any(loc in potential_location_preferences for loc in user.get("location", [])))
 
+            print("  - Potential Match's Gender Preference:", potential_gender_preference)
+            print("  - Current User's Gender:", user.get("gender"))
+            print("  - Potential Match's Age Range:", potential_age_range)
+            print("  - Current User's Age:", user_age)
+
             # Print the result of each condition (second pairing)
-            print("\nChecking Conditions:")
+            print("\nChecking Conditions for potential match:")
             print("  - Gender Condition:", potential_gender_condition)
             print("  - Age Condition:", potential_age_condition)
             print("  - Skill Level Condition:", potential_skill_level_condition)
