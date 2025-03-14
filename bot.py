@@ -642,6 +642,7 @@ async def user_experience_response(update: Update, context: ContextTypes.DEFAULT
 
 # Define new state for additional feedback
 OTHER_FEEDBACK = 2
+
 async def other_feedback_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()  # Acknowledge the callback query
@@ -707,7 +708,6 @@ async def receive_other_feedback(update: Update, context: ContextTypes.DEFAULT_T
 
         print(f"Received additional feedback from user {user_telegram_id}: {user_feedback}")  # Debugging print
 
-
         # Save the feedback to MongoDB (or any other storage)
         feedback_collection.insert_one({
             "telegramId": user_telegram_id,
@@ -724,6 +724,7 @@ async def receive_other_feedback(update: Update, context: ContextTypes.DEFAULT_T
         # Log the error and notify the user
         print(f"Error in receive_other_feedback: {e}")
         await update.message.reply_text("An error occurred while processing your feedback. Please try again.")
+
 
 # Callback function for no game reasons
 async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -882,13 +883,14 @@ async def cancel_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 # Define the setup_handlers function
+# Define the setup_handlers function
 def setup_handlers(application):
     # Feedback conversation handler
     feedback_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("feedback", feedback_command)],  # Start with /feedback
         states={
             FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_feedback)],  # Wait for user input
-            OTHER_FEEDBACK: [MessageHandler(filters.ALL, receive_other_feedback)],  # Wait for additional feedback
+            OTHER_FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_other_feedback)],  # Wait for additional feedback
         },
         fallbacks=[CommandHandler("cancel", cancel_feedback)],
     )
@@ -899,7 +901,7 @@ def setup_handlers(application):
     # Add callback query handlers for other feedback
     application.add_handler(CallbackQueryHandler(other_feedback_yes, pattern="^other_feedback_yes_"))
     application.add_handler(CallbackQueryHandler(other_feedback_no, pattern="^other_feedback_no_"))
-
+    
 # Call the setup_handlers function to add the feedback conversation handler
 setup_handlers(application)
 
