@@ -251,7 +251,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("Type of potential_match['location']:", type(potential_match.get("location")))
 
         # Evaluate each condition separately
-        gender_condition = (gender_preference == "No preference" or potential_match.get("gender") == gender_preference)
+        gender_condition = (gender_preference in ["No preference", "Either"] or potential_match.get("gender") == gender_preference)
         age_condition = (age_range[0] <= potential_match.get("age", 0) <= age_range[1])
         skill_level_condition = (not skill_levels or potential_match_skill_level in skill_levels)
         location_condition = (not location_preferences or any(loc in location_preferences for loc in potential_match.get("location", [])))
@@ -310,7 +310,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"Location: {user_location} (Type: {type(user_location).__name__})")       
 
             # Evaluate each condition separately
-            potential_gender_condition = (potential_gender_preference == "No preference" or user_gender == potential_gender_preference)
+            potential_gender_condition = (potential_gender_preference in ["No preference", "Either"] or user_gender == potential_gender_preference)
             potential_age_condition = (potential_age_range[0] <= user_age <= potential_age_range[1])
             potential_skill_level_condition = (not potential_skill_levels or user_skill_level in potential_skill_levels)
             potential_location_condition = (not potential_location_preferences or any(loc in potential_location_preferences for loc in user_location))
