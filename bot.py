@@ -323,11 +323,12 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Send the match info to the users
                 await context.bot.send_message(
                     chat_id=user_telegram_id,
-                    text=f"You have been matched with {potential_match.get('displayName', 'Unknown')} for {sport}! 🎉"
+                    text = f"You have been matched with {potential_match.get('displayName', 'Unknown')} ({potential_match_age}) for {sport}! 🎉"
+
                 )
                 await context.bot.send_message(
                     chat_id=potential_match["telegramId"],
-                    text=f"You have been matched with {user.get('displayName', 'Unknown')} for {sport}! 🎉"
+                    text=f"You have been matched with {user.get('displayName', 'Unknown')} ({user_age}) for {sport}! 🎉"
                 )
                 return  # Exit the function after a match is found
             else:
