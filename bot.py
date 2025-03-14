@@ -776,6 +776,13 @@ async def receive_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Thanks for your feedback!")
     return ConversationHandler.END  # End the conversation
 
+# Fallback handler to cancel the conversation
+async def cancel_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the feedback conversation."""
+    print("Feedback process cancelled")  # Debugging print
+    await update.message.reply_text("Feedback process cancelled.")
+    return ConversationHandler.END
+
 # Define the setup_handlers function
 def setup_handlers(application):
     # Feedback conversation handler
@@ -784,6 +791,7 @@ def setup_handlers(application):
         states={
             FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_feedback)],  # Wait for user input
         },
+        fallbacks=[CommandHandler("cancel", cancel_feedback)],
     )
 
     # Add the feedback conversation handler to the application
