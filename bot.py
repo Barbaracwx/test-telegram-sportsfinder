@@ -323,8 +323,40 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(":) Skill Level Condition:", potential_skill_level_condition)
             print(":) Location Condition:", potential_location_condition) 
 
+            if (potential_gender_condition and potential_age_condition and potential_skill_level_condition and potential_location_condition):
+                # A suitable match has been found
+                # Create a match entry using pymongo, including usernames for both users
+                match_document = {
+                    "userAId": user_telegram_id,
+                    "userBId": potential_match["telegramId"],
+                    "userAUsername": user.get("username", "Unknown"),
+                    "userBUsername": potential_match.get("username", "Unknown"),
+                    "sport": sport,
+                    "status": "active"
+                }
+                matches_collection.insert_one(match_document)
+
+                # Update users as matched in pymongo and reset wantToBeMatched to False
+                users_collection.update_many(
+                    {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}} ,
+                    {"$set": {"isMatched": True, "wantToBeMatched": False}}  # Set wantToBeMatched to False after matching
+                )
+
+                # Send the match info to the users
+                await context.bot.send_message(
+                    chat_id=user_telegram_id,
+                    text=f"You have been matched with {potential_match.get('displayName', 'Unknown')} for {sport}! 🎉"
+                )
+                await context.bot.send_message(
+                    chat_id=potential_match["telegramId"],
+                    text=f"You have been matched with {user.get('displayName', 'Unknown')} for {sport}! 🎉"
+                )
+                return  # Exit the function after a match is found
+            else:
+                print("second match fail")
+
         else:
-            print("One or more conditions did not match. Skipping this potential match.")
+            print("first match fail")
 
         # Check if the potential match's data matches the current user's preferences
         if (
