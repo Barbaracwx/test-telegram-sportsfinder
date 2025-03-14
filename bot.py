@@ -142,7 +142,6 @@ async def match_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Check if the match preferences are complete
     if not are_preferences_complete(user):
-        await update.message.reply_text("Please complete your match preferences first!")
         return
 
     # Check if the user is already matched
@@ -705,6 +704,36 @@ def is_profile_complete(user):
 def are_preferences_complete(user):
     """Check if the user's match preferences are complete."""
     return bool(user.get("matchPreferences"))
+
+async def are_preferences_complete(update: Update, user):
+    """Check if the user's match preferences include all their sports."""
+    
+    # Extract user's sports and matchPreferences (ensuring matchPreferences is always a dictionary)
+    sports = user.get("sports", [])  # Ensure we have a list of sports
+    # Retrieve the current user's match preferences for the selected sport
+    match_preferences = user.get("matchPreferences", {})
+
+    # Convert from string to dictionary 
+    if isinstance(match_preferences, str):
+        try:
+            match_preferences = json.loads(match_preferences)  # Convert JSON string to dictionary
+        except json.JSONDecodeError:
+            print("Error: matchPreference is not a valid JSON format.")
+            match_preferences = {}  # Fallback to an empty dictionary
+
+    # Find sports that are missing from matchPreferences
+    missing_sports = [sport for sport in sports if sport not in match_preferences]
+
+    # If there are missing sports, inform the user to complete their preferences
+    if missing_sports := [sport for sport in sports if sport not in match_preferences]:
+        missing_sports_list = ", ".join(missing_sports)
+        await update.message.reply_text(
+            f"Please complete your match preferences for the following sports: {missing_sports_list}"
+        )
+        return False  # Not all sports have match preferences
+
+    return True  # All sports have match preferences
+
 
 # Register the /start, /matchme, /endmatch command handlers and the message handler for forwarding messages
 start_handler = CommandHandler('start', start)
