@@ -608,6 +608,7 @@ async def user_experience_response(update: Update, context: ContextTypes.DEFAULT
         else:
             await query.edit_message_text("You are not part of this match.")
             return
+    
 
         # Update the match document with the user experience rating
         matches_collection.update_one(
@@ -623,108 +624,17 @@ async def user_experience_response(update: Update, context: ContextTypes.DEFAULT
         # Notify the user that their feedback has been recorded
         await query.edit_message_text(f"How was your experience with {other_user_display_name}? You responded: ⭐ {rating}.")
 
-        # Ask if the user has any other feedback
-        other_feedback_keyboard = [
-            [InlineKeyboardButton("Yes", callback_data=f"other_feedback_yes_{match_id}")],
-            [InlineKeyboardButton("No", callback_data=f"other_feedback_no_{match_id}")]
-        ]
-        other_feedback_markup = InlineKeyboardMarkup(other_feedback_keyboard)
+        # Send a final thank you message
         await context.bot.send_message(
             chat_id=user_telegram_id,
-            text="Any other feedback?",
-            reply_markup=other_feedback_markup
+            text="Thank you for your feedback!"
         )
+
 
     except Exception as e:
         # Log the error and notify the user
         print(f"Error in user_experience_response: {e}")
         await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
-
-# Define new state for additional feedback
-OTHER_FEEDBACK = 2
-
-async def other_feedback_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()  # Acknowledge the callback query
-
-    try:
-        # Extract the match ID from the callback data
-        match_id = query.data.split("_")[3]
-        user_telegram_id = query.from_user.id
-
-        # Convert match_id to ObjectId
-        match_id = ObjectId(match_id)
-
-        # Find the match document
-        match_document = matches_collection.find_one({"_id": match_id})
-
-        if not match_document:
-            await query.edit_message_text("Match not found.")
-            return
-
-        # Prompt the user to type their feedback
-        await query.edit_message_text("Please type your additional feedback below:")
-        print(f"Transitioning to OTHER_FEEDBACK state for user {user_telegram_id}")  # Debugging print
-        return OTHER_FEEDBACK  # Move to the OTHER_FEEDBACK state
-
-    except Exception as e:
-        # Log the error and notify the user
-        print(f"Error in other_feedback_yes: {e}")
-        await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
-
-async def other_feedback_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()  # Acknowledge the callback query
-
-    try:
-        # Extract the match ID from the callback data
-        match_id = query.data.split("_")[3]
-        user_telegram_id = query.from_user.id
-
-        # Convert match_id to ObjectId
-        match_id = ObjectId(match_id)
-
-        # Find the match document
-        match_document = matches_collection.find_one({"_id": match_id})
-
-        if not match_document:
-            await query.edit_message_text("Match not found.")
-            return
-
-        # Thank the user for their feedback
-        await query.edit_message_text("Thank you for your feedback!")
-        return ConversationHandler.END  # End the conversation
-
-    except Exception as e:
-        # Log the error and notify the user
-        print(f"Error in other_feedback_no: {e}")
-        await query.edit_message_text("An error occurred while processing your feedback. Please try again.")
-
-async def receive_other_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        user_feedback = update.message.text  # Get the user's feedback
-        user_telegram_id = update.message.from_user.id
-        user_username = update.message.from_user.username
-
-        print(f"Received additional feedback from user {user_telegram_id}: {user_feedback}")  # Debugging print
-
-        # Save the feedback to MongoDB (or any other storage)
-        feedback_collection.insert_one({
-            "telegramId": user_telegram_id,
-            "username": user_username,
-            "feedback": user_feedback,
-            "timestamp": datetime.datetime.now()
-        })
-
-        # Thank the user for their feedback
-        await update.message.reply_text("Thank you for your feedback!")
-        return ConversationHandler.END  # End the conversation
-
-    except Exception as e:
-        # Log the error and notify the user
-        print(f"Error in receive_other_feedback: {e}")
-        await update.message.reply_text("An error occurred while processing your feedback. Please try again.")
-
 
 # Callback function for no game reasons
 async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -883,14 +793,12 @@ async def cancel_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 # Define the setup_handlers function
-# Define the setup_handlers function
 def setup_handlers(application):
     # Feedback conversation handler
     feedback_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("feedback", feedback_command)],  # Start with /feedback
         states={
             FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_feedback)],  # Wait for user input
-            OTHER_FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_other_feedback)],  # Wait for additional feedback
         },
         fallbacks=[CommandHandler("cancel", cancel_feedback)],
     )
@@ -898,10 +806,6 @@ def setup_handlers(application):
     # Add the feedback conversation handler to the application
     application.add_handler(feedback_conv_handler)
 
-    # Add callback query handlers for other feedback
-    application.add_handler(CallbackQueryHandler(other_feedback_yes, pattern="^other_feedback_yes_"))
-    application.add_handler(CallbackQueryHandler(other_feedback_no, pattern="^other_feedback_no_"))
-    
 # Call the setup_handlers function to add the feedback conversation handler
 setup_handlers(application)
 
