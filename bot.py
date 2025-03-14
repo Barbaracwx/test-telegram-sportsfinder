@@ -141,7 +141,7 @@ async def match_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Check if the match preferences are complete
-    if not are_preferences_complete(user):
+    if not are_preferences_complete(update, user):
         return
 
     # Check if the user is already matched
