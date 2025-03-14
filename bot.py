@@ -268,7 +268,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("Current User's Location Preferences:", location_preferences)
         print("Potential Match's Location:", potential_match.get("location"))
 
-        if potential_gender_condition and potential_age_condition and potential_skill_level_condition and potential_location_condition:
+        if gender_condition and age_condition and skill_level_condition and location_condition:
             print("All conditions matched! Proceeding with the match. (first if block)")
             potential_match_preferences = potential_match.get("matchPreferences", {})
             # Convert from string to dictionary 
@@ -284,6 +284,18 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             potential_sport_preferences = potential_match_preferences.get(sport, {})
             print("Sport Preferences for potential match", sport, ":", potential_sport_preferences)
             print("Type of sports preferences:", type(potential_sport_preferences))  # Check type
+
+            # extract out the potential match preferences
+            #the 4 conditions to match (check potential match preferences to current user data)
+            potential_age_range = potential_sport_preferences.get("ageRange", [1, 100])
+            potential_gender_preference = potential_sport_preferences.get("genderPreference", "No preference")
+            potential_skill_levels = potential_sport_preferences.get("skillLevels", [])
+            potential_location_preferences = potential_sport_preferences.get("locationPreferences", [])
+            print("age range for potential match", sport, ":", potential_age_range, "| Type:", type(potential_age_range))
+            print("gender preferences for potential match", sport, ":", potential_gender_preference, "| Type:", type(potential_gender_preference))
+            print("skill level for potential match", sport, ":", potential_skill_levels, "| Type:", type(potential_skill_levels))
+            print("location for potential match", sport, ":", potential_location_preferences, "| Type:", type(potential_location_preferences))
+
         else:
             print("One or more conditions did not match. Skipping this potential match.")
 
