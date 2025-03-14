@@ -278,15 +278,14 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Check if the potential match's data matches the current user's preferences
         if (
-            (gender_preference == "No preference" or potential_match.get("gender") == gender_preference) and
-            (age_range[0] <= potential_match.get("age", 0) <= age_range[1]) and
-            (not skill_levels or potential_match.get("skillLevel") in skill_levels) and
-            (not location_preferences or potential_match.get("location") in location_preferences)
+            gender_condition and age_condition and skill_level_condition and location_condition
 
         ):
 
             # Now, check if the current user's data matches the potential match's preferences
             potential_match_preferences = potential_match.get("matchPreference", {})
+            print("Match Preferences for potential match:", potential_match_preferences)  # Print match preferences
+            print("Type of match_preferences for potential match:", type(potential_match_preferences))  # Check type
             potential_sport_preferences = potential_match_preferences.get(sport, {})
             
             potential_age_range = potential_sport_preferences.get("ageRange", [1, 100])
