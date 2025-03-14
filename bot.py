@@ -749,12 +749,14 @@ FEEDBACK = 1
 # Command handler for /feedback
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Prompt the user to provide feedback."""
+    print("/feedback command triggered")  # Debugging print
     await update.message.reply_text("What feedback do you want to say? Type below:")
     return FEEDBACK  # Move to the FEEDBACK state
 
 # Message handler for receiving feedback
 async def receive_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Receive the user's feedback and acknowledge it."""
+    print("User sent feedback")  # Debugging print
     user_feedback = update.message.text  # Get the user's message
     user_telegram_id = update.message.from_user.id
 
@@ -772,6 +774,7 @@ async def receive_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Fallback handler to cancel the conversation
 async def cancel_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel the feedback conversation."""
+    print("Feedback process cancelled")  # Debugging print
     await update.message.reply_text("Feedback process cancelled.")
     return ConversationHandler.END
 
@@ -820,6 +823,8 @@ application.add_handler(CallbackQueryHandler(bot_experience_response, pattern="^
 application.add_handler(CallbackQueryHandler(user_experience_response, pattern="^user_experience_"))
 application.add_handler(CallbackQueryHandler(no_game_reason_response, pattern="^no_game_reason_"))
 
+# Call the setup_handlers function to add the feedback conversation handler
+setup_handlers(application)
 
 # Start the bot
 application.run_polling()
