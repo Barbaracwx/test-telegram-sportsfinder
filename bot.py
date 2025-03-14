@@ -750,13 +750,14 @@ FEEDBACK = 1
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Prompt the user to provide feedback."""
     print("/feedback command triggered")  # Debugging print
-    await update.message.reply_text("What feedback do you want to say? Type below:")
+    await update.message.reply_text("Provide any feedback/ reports here! Every response is greatly appreciated and every single one of them will be read! Type below:")
     context.user_data["feedback_state"] = FEEDBACK  # Debugging: Track state in user_data
-    print(f"State set to FEEDBACK: {context.user_data.get('feedback_state')}")  # Debugging print
     return FEEDBACK  # Move to the FEEDBACK state
 
 # Message handler for receiving feedback
 async def receive_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_username = update.message.from_user.username or "Unknown"
+
     """Receive the user's feedback and acknowledge it."""
     print("User sent feedback")  # Debugging print
     print(f"Current state: {context.user_data.get('feedback_state')}")  # Debugging print
@@ -766,6 +767,7 @@ async def receive_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Save the feedback to MongoDB
     feedback_collection.insert_one({
         "telegramId": user_telegram_id,
+        "username": user_username,
         "feedback": user_feedback,
         "timestamp": datetime.datetime.now()
     })
@@ -773,13 +775,6 @@ async def receive_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Acknowledge the feedback
     await update.message.reply_text("Thanks for your feedback!")
     return ConversationHandler.END  # End the conversation
-
-# Fallback handler to cancel the conversation
-async def cancel_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancel the feedback conversation."""
-    print("Feedback process cancelled")  # Debugging print
-    await update.message.reply_text("Feedback process cancelled.")
-    return ConversationHandler.END
 
 # Define the setup_handlers function
 def setup_handlers(application):
@@ -789,7 +784,6 @@ def setup_handlers(application):
         states={
             FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_feedback)],  # Wait for user input
         },
-        fallbacks=[CommandHandler("cancel", cancel_feedback)],  # Allow the user to cancel
     )
 
     # Add the feedback conversation handler to the application
