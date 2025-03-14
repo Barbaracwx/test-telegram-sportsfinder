@@ -283,7 +283,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ):
 
             # Now, check if the current user's data matches the potential match's preferences
-            potential_match_preferences = potential_match.get("matchPreference", {})
+            potential_match_preferences = potential_match.get("matchPreferences", {})
 
             # Convert from string to dictionary 
             if isinstance(potential_match_preferences, str):
@@ -300,7 +300,7 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print("Sport Preferences for potential match", sport, ":", potential_sport_preferences)
             print("Type of sports preferences:", type(potential_sport_preferences))  # Check type
 
-            
+            #the 4 conditions to match (check potential match preferences to current user data)
             potential_age_range = potential_sport_preferences.get("ageRange", [1, 100])
             potential_gender_preference = potential_sport_preferences.get("genderPreference", "No preference")
             potential_skill_levels = potential_sport_preferences.get("skillLevels", [])
