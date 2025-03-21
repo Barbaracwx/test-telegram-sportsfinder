@@ -706,7 +706,7 @@ async def no_game_reason_response(update: Update, context: ContextTypes.DEFAULT_
 # Helper functions
 def is_profile_complete(user):
     """Check if the user's profile is complete."""
-    required_fields = ["age", "gender", "location", "sports"]
+    required_fields = ["age", "gender", "sports"]
     return all(user.get(field) for field in required_fields)
 
 async def are_preferences_complete(update: Update, user):
