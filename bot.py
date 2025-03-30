@@ -368,7 +368,7 @@ async def end_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Get the sports the user is currently searching for (as string)
-    sports_selected_str = user.get("sportsSelected", "")
+    sports_selected_str = user.get("selectedSport", "")
     
     # Debug logging for sportsSelected
     print(f"[DEBUG] sportsSelected value: {sports_selected_str}")  # Log the value
