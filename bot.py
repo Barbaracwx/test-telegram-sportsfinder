@@ -60,7 +60,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Create the web app button for first-time users
-        keyboard = [[InlineKeyboardButton("My Profile", web_app={'url': 'https://webapp-sportsfinder.vercel.app/'})]]
+        keyboard = [[InlineKeyboardButton("My Profile", web_app={'url': 'https://test-webapp-sportsfinder.vercel.app/'})]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Send the welcome message with the button
