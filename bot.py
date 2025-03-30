@@ -348,6 +348,63 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=f"No match found for {sport} at the moment. Please wait for a match!"
     )
 
+# Handler for /endsearch command
+async def end_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_telegram_id = update.message.from_user.id
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+    
+    if not user:
+        await update.message.reply_text("Please complete your profile first!")
+        return
+    
+    # Check if user is currently in a match
+    if user.get("isMatched", False):
+        await update.message.reply_text("You are currently in a match. Please use /endmatch to end your current match first.")
+        return
+    
+    # Check if user is currently searching for matches
+    if not user.get("wantToBeMatched", False):
+        await update.message.reply_text("You are not currently searching for any matches.")
+        return
+    
+    # Get the sports the user is currently searching for (as string)
+    sports_selected_str = user.get("sportsSelected", "")
+    
+    if not sports_selected_str:
+        await update.message.reply_text("You are not currently searching for any sports.")
+        return
+    
+    # Create inline keyboard with the single sport option
+    # (assuming sportsSelected contains just one sport as a string)
+    keyboard = [
+        [InlineKeyboardButton(sports_selected_str, callback_data=f"endsearch_{sports_selected_str}")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "You are currently searching for matches! Click the button below to stop searching:",
+        reply_markup=reply_markup
+    )
+
+# Callback handler for end search selection
+async def end_search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    user_telegram_id = query.from_user.id
+    data = query.data
+    
+    sport = data.split("_")[1]
+    
+    # Update MongoDB - set wantToBeMatched to false
+    users_collection.update_one(
+        {"telegramId": user_telegram_id},
+        {"$set": {"wantToBeMatched": False}}
+    )
+    
+    await query.edit_message_text(f"OK, you have ended the search for {sport}.")
+
 # /endmatch function
 async def end_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_telegram_id = update.message.from_user.id
@@ -841,6 +898,10 @@ application.add_handler(CallbackQueryHandler(feedback_response, pattern="^feedba
 application.add_handler(CallbackQueryHandler(bot_experience_response, pattern="^bot_experience_"))
 application.add_handler(CallbackQueryHandler(user_experience_response, pattern="^user_experience_"))
 application.add_handler(CallbackQueryHandler(no_game_reason_response, pattern="^no_game_reason_"))
+
+#/endsearch
+application.add_handler(CommandHandler('endsearch', end_search))
+application.add_handler(CallbackQueryHandler(end_search_callback, pattern="^endsearch_"))
 
 # Start the bot
 application.run_polling()
