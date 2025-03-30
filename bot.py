@@ -97,7 +97,7 @@ async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Create the web app button for editing profile
     keyboard = [
-        [InlineKeyboardButton("Edit Profile", web_app={'url': 'https://webapp-profile-sportsfinder.vercel.app/'})],
+        [InlineKeyboardButton("Edit Profile", web_app={'url': 'https://test-webapp-profile-sportsfinder.vercel.app/'})],
         [InlineKeyboardButton("Edit Match Preferences", web_app={'url': 'https://webapp-matchpreferences-sportsfinder.vercel.app/'})]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
