@@ -370,7 +370,12 @@ async def end_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get the sports the user is currently searching for (as string)
     sports_selected_str = user.get("sportsSelected", "")
     
+    # Debug logging for sportsSelected
+    print(f"[DEBUG] sportsSelected value: {sports_selected_str}")  # Log the value
+    print(f"[DEBUG] sportsSelected type: {type(sports_selected_str)}")  # Log the type
+
     if not sports_selected_str:
+        print(f"[DEBUG] sportsSelected is empty for user {user_telegram_id}")  # Debug log
         await update.message.reply_text("You are not currently searching for any sports.")
         return
     
