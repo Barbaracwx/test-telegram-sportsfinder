@@ -24,7 +24,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")  # MongoDB connection string
 
 # Connect to MongoDB
 mongo_client = MongoClient(DATABASE_URL)
-db = mongo_client["sportsfinder"]  # Use the database "sportsfinder"
+db = mongo_client["test_database"]  # Use the database "sportsfinder"
 users_collection = db["User"]  # Use the collection "users"
 matches_collection = db["Match"]  # Use the collection "matches"
 feedback_collection = db["Feedback"]  # Use the collection "Feedback"
