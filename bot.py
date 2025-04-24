@@ -33,8 +33,6 @@ feedback_collection = db["Feedback"]  # Use the collection "Feedback"
 
 # Create the Telegram Bot application
 application = Application.builder().token(TOKEN).build()
-application.job_queue = JobQueue()
-application.job_queue.set_application(application)
 
 # Mapping reason numbers to their full text descriptions
 NO_GAME_REASONS = {
