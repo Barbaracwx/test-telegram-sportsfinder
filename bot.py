@@ -43,7 +43,7 @@ NO_GAME_REASONS = {
     "5": "Others"
 }
 
-SMART_MATCH_WAIT_TIME = 3600  # 1 hour in seconds
+SMART_MATCH_WAIT_TIME = 60  # 1 hour in seconds
 
 # Function to handle /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
