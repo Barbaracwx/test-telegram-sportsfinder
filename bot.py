@@ -14,6 +14,8 @@ from telegram.ext import (
 from bson import ObjectId
 import json
 import datetime
+from telegram.ext import JobQueue
+import asyncio
 
 
 # Load environment variables from .env file
@@ -40,6 +42,8 @@ NO_GAME_REASONS = {
     "4": "Decided not to play",
     "5": "Others"
 }
+
+SMART_MATCH_WAIT_TIME = 3600  # 1 hour in seconds
 
 # Function to handle /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -172,7 +176,7 @@ async def match_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-# Callback function when a sport is selected
+# Modify the sport_selected function to ask about Smart-Match
 async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()  # Acknowledge the callback query
@@ -185,168 +189,232 @@ async def sport_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("User not found.")
         return
     
-    # Retrieve the current user's match preferences for the selected sport
-    match_preferences = user.get("matchPreferences", {})
-
-    # Convert from string to dictionary 
-    if isinstance(match_preferences, str):
-        try:
-            match_preferences = json.loads(match_preferences)  # Convert JSON string to dictionary
-        except json.JSONDecodeError:
-            print("Error: matchPreference is not a valid JSON format.")
-            match_preferences = {}  # Fallback to an empty dictionary
-
-    print("Match Preferences:", match_preferences) 
-
-    sport_preferences = match_preferences.get(sport, {})
-    print("Sport Preferences for", sport, ":", sport_preferences)
-
-    # Extract preferences
-    age_range = sport_preferences.get("ageRange", [1, 100])  # Default age range if not specified
-    gender_preference = sport_preferences.get("genderPreference", "No preference")
-    skill_levels = sport_preferences.get("skillLevels", [])
-    location_preferences = sport_preferences.get("locationPreferences", [])
-    location_preferences = set(location_preferences)  # Convert to set
-
-    print(f"Current user's preferences for {sport}: Age={age_range}, Gender={gender_preference}, Skills={skill_levels}, Locations={location_preferences}")  # Debugging
+    # Ask about Smart-Match
+    smart_match_keyboard = [
+        [InlineKeyboardButton("On", callback_data=f"smartmatch_on_{sport}")],
+        [InlineKeyboardButton("Off", callback_data=f"smartmatch_off_{sport}")]
+    ]
+    smart_match_markup = InlineKeyboardMarkup(smart_match_keyboard)
     
-    # Send the "Gotcha! Sportsfinding for you..." message
-    await query.edit_message_text(f"Gotcha! Sportsfinding your player in {sport}...")
-
-    # Mark the user as wanting to be matched for the selected sport
-    users_collection.update_one(
-        {"telegramId": user_telegram_id},
-        {"$set": {"wantToBeMatched": True, "selectedSport": sport}}
+    await query.edit_message_text(
+        f"Do you want Smart-Match on for {sport}?\n\n"
+        "If no one is found within 1 hour, your match preference opens up to all options until you find a match.",
+        reply_markup=smart_match_markup
     )
 
-    # Find an ideal match based on users who also want to be matched for the same sport
-    # Iterate through the users_collection to find a suitable match
-    for potential_match in users_collection.find({
-        "telegramId": {"$ne": user_telegram_id},  # Not the same user
-        "wantToBeMatched": True,  # Only match with users who want to be matched
-        "selectedSport": sport,  # Match for the same sport
-    }):
+    # Add new callback handler for Smart-Match response
+async def smart_match_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    _, smart_match_setting, sport = data.split("_")
+    user_telegram_id = query.from_user.id
+    
+    # Update user's Smart-Match preference and start time
+    users_collection.update_one(
+        {"telegramId": user_telegram_id},
+        {
+            "$set": {
+                "wantToBeMatched": True,
+                "selectedSport": sport,
+                "smartMatch": smart_match_setting == "on",
+                "matchStartTime": datetime.datetime.now()
+            }
+        }
+    )
+    
+    await query.edit_message_text(
+        f"Got it! Smart-Match is turned {smart_match_setting} for {sport}. "
+        f"Sportsfinding your player in {sport}..."
+    )
+    
+    # Start the matching process
+    await find_match(user_telegram_id, sport, context, smart_match_setting == "on")
+
+# Modified matching function
+async def find_match(user_telegram_id, sport, context, is_smart_match):
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+    
+    if not user:
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text="User not found."
+        )
+        return
+    
+    # First try to find a match with preferences
+    match_found = await try_find_match(user_telegram_id, sport, context, use_preferences=True)
+    
+    if not match_found and is_smart_match:
+        # If no match found and Smart-Match is on, schedule a check for later
+        context.job_queue.run_once(
+            smart_match_check,
+            SMART_MATCH_WAIT_TIME,
+            chat_id=user_telegram_id,
+            name=f"smartmatch_{user_telegram_id}",
+            data={
+                "sport": sport,
+                "start_time": datetime.datetime.now()
+            }
+        )
         
-        #extract out the location preferences in sports preferences for potential match
-        potential_match_preferences = potential_match.get("matchPreferences", {})
-        # Convert from string to dictionary 
-        if isinstance(potential_match_preferences, str):
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text=f"No match found yet. Will try again in 1 hour with relaxed preferences."
+        )
+
+# Background job for Smart-Match check
+async def smart_match_check(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    user_telegram_id = job.chat_id
+    sport = job.data["sport"]
+    start_time = job.data["start_time"]
+    
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+    
+    if not user or not user.get("wantToBeMatched", False) or user.get("isMatched", False):
+        return  # User is no longer looking for a match
+    
+    # Check if user still has Smart-Match on
+    if not user.get("smartMatch", False):
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text=f"Smart-Match is no longer active for {sport}."
+        )
+        return
+    
+    # Try to find a match without considering preferences
+    await try_find_match(user_telegram_id, sport, context, use_preferences=False)
+
+# Unified matching function
+async def try_find_match(user_telegram_id, sport, context, use_preferences=True):
+    user = users_collection.find_one({"telegramId": user_telegram_id})
+    
+    if not user:
+        return False
+    
+    if use_preferences:
+        # Get user's preferences for the sport
+        match_preferences = user.get("matchPreferences", {})
+        if isinstance(match_preferences, str):
             try:
-                potential_match_preferences = json.loads(potential_match_preferences)  # Convert JSON string to dictionary
+                match_preferences = json.loads(match_preferences)
             except json.JSONDecodeError:
-                print("Error: matchPreference is not a valid JSON format.")
-                potential_match_preferences = {}  # Fallback to an empty dictionary
+                match_preferences = {}
         
-        potential_sport_preferences = potential_match_preferences.get(sport, {})
-        potential_location_preferences = potential_sport_preferences.get("locationPreferences", [])
-        potential_location_preferences = set(potential_location_preferences)  # Convert to set
-        
-        # Extract the skill level for the selected sport from the potential match's sports data
-        potential_match_sports = potential_match.get("sports", {})
-        potential_match_skill_level = potential_match_sports.get(sport, "Unknown")  # Default to "Unknown
-        potential_match_age = int(potential_match.get("age", 0))
-
-        print("\n➡️ Checking potential match:", potential_match.get("username", "Unknown"))
-        print("  - Gender:", potential_match.get("gender"))
-        print("  - Age:", potential_match_age)
-        print(f"  - Skill Level for {sport}: {potential_match_skill_level}")
-        print("  - Location:", potential_location_preferences)
-
-        # Evaluate each condition separately
-        gender_condition = (gender_preference in ["No preference", "Either"] or potential_match.get("gender") == gender_preference)
-        age_condition = (age_range[0] <= potential_match.get("age", 0) <= age_range[1])
-        skill_level_condition = (not skill_levels or potential_match_skill_level in skill_levels)
-        # Check if there is at least one common location
-        location_condition = len(location_preferences.intersection(potential_location_preferences)) > 0
-
-        # Print the result of each condition
-        print("\nChecking Conditions:")
-        print("  - Gender Condition:", gender_condition)
-        print("  - Age Condition:", age_condition)
-        print("  - Skill Level Condition:", skill_level_condition)
-        print("  - Location Condition:", location_condition)
-
-        if gender_condition and age_condition and skill_level_condition and location_condition:
-            print("All conditions matched! Proceeding with the match. (first if block)")
-
-            print("Match Preferences for potential match:", potential_match_preferences)  # Print match preferences
-            print("Sport Preferences for potential match", sport, ":", potential_sport_preferences)
-
-            # extract out the potential match preferences
-            #the 4 conditions to match (check potential match preferences to current user data)
+        sport_preferences = match_preferences.get(sport, {})
+        age_range = sport_preferences.get("ageRange", [1, 100])
+        gender_preference = sport_preferences.get("genderPreference", "No preference")
+        skill_levels = sport_preferences.get("skillLevels", [])
+        location_preferences = set(sport_preferences.get("locationPreferences", []))
+    else:
+        # For Smart-Match, use very broad preferences
+        age_range = [1, 100]
+        gender_preference = "No preference"
+        skill_levels = []
+        location_preferences = set()
+    
+    # Find potential matches
+    query = {
+        "telegramId": {"$ne": user_telegram_id},
+        "wantToBeMatched": True,
+        "selectedSport": sport,
+        "isMatched": False
+    }
+    
+    for potential_match in users_collection.find(query):
+        # Check if we should consider preferences
+        if use_preferences:
+            # Get potential match's preferences for the sport
+            potential_match_preferences = potential_match.get("matchPreferences", {})
+            if isinstance(potential_match_preferences, str):
+                try:
+                    potential_match_preferences = json.loads(potential_match_preferences)
+                except json.JSONDecodeError:
+                    potential_match_preferences = {}
+            
+            potential_sport_preferences = potential_match_preferences.get(sport, {})
+            potential_location_preferences = set(potential_sport_preferences.get("locationPreferences", []))
+            
+            # Check if potential match would accept this user
             potential_age_range = potential_sport_preferences.get("ageRange", [1, 100])
             potential_gender_preference = potential_sport_preferences.get("genderPreference", "No preference")
             potential_skill_levels = potential_sport_preferences.get("skillLevels", [])
-            print("potential match match preferences: age range", sport, ":", potential_age_range, "| Type:", type(potential_age_range))
-            print("potential match match preferences: gender preferences", sport, ":", potential_gender_preference, "| Type:", type(potential_gender_preference))
-            print("potential match match preferences: skill level", sport, ":", potential_skill_levels, "| Type:", type(potential_skill_levels))
-            print("potential match match preferences: location", sport, ":", potential_location_preferences, "| Type:", type(potential_location_preferences))
-
-            #user own data
-            user_age = int(user.get("age", 0))  # Extract user's age
-            user_gender = user.get("gender", None)
-            user_sports = user.get("sports", {})  # Extract user's sports dictionary
-            user_skill_level = user_sports.get(sport, "Unknown")  # Default to "Unknown" if sport is not found
-            # Print function that includes both values and their types
-            print("User Data Extraction:")
-            print(f"Age: {user_age} (Type: {type(user_age).__name__})")
-            print(f"Gender: {user_gender} (Type: {type(user_gender).__name__})")
-            print(f"Skill Level for {sport}: {user_skill_level} (Type: {type(user_skill_level).__name__})")    
-
-            # Evaluate each condition separately
-            potential_gender_condition = (potential_gender_preference in ["No preference", "Either"] or user_gender == potential_gender_preference)
+            
+            # Get user's data
+            user_age = int(user.get("age", 0))
+            user_gender = user.get("gender")
+            user_sports = user.get("sports", {})
+            user_skill_level = user_sports.get(sport, "Unknown")
+            
+            # Check if potential match would accept this user
+            potential_gender_condition = (potential_gender_preference in ["No preference", "Either"] or 
+                                        user_gender == potential_gender_preference)
             potential_age_condition = (potential_age_range[0] <= user_age <= potential_age_range[1])
-            potential_skill_level_condition = (not potential_skill_levels or user_skill_level in potential_skill_levels)
-
-            # Print the result of each condition (second pairing)
-            print("Checking Conditions for potential match:")
-            print(":) Gender Condition:", potential_gender_condition)
-            print(":) Age Condition:", potential_age_condition)
-            print(":) Skill Level Condition:", potential_skill_level_condition)
-
-            if (potential_gender_condition and potential_age_condition and potential_skill_level_condition):
-                # A suitable match has been found
-                # Create a match entry using pymongo, including usernames for both users
-                match_document = {
-                    "userAId": user_telegram_id,
-                    "userBId": potential_match["telegramId"],
-                    "userAUsername": user.get("username", "Unknown"),
-                    "userBUsername": potential_match.get("username", "Unknown"),
-                    "sport": sport,
-                    "status": "active"
-                }
-                matches_collection.insert_one(match_document)
-
-                # Update users as matched in pymongo and reset wantToBeMatched to False
-                users_collection.update_many(
-                    {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}} ,
-                    {"$set": {"isMatched": True, "wantToBeMatched": False}}  # Set wantToBeMatched to False after matching
-                )
-
-                # Send the match info to the users
-                await context.bot.send_message(
-                    chat_id=user_telegram_id,
-                    text = f"You have been matched with {potential_match.get('displayName', 'Unknown')} ({potential_match_age}, {potential_match.get('gender')}) for {sport}! 🎉\nYou can now start chatting via this bot, type your messages below!"
-
-
-                )
-                await context.bot.send_message(
-                    chat_id=potential_match["telegramId"],
-                    text = f"You have been matched with {user.get('displayName', 'Unknown')} ({user_age}, {user.get('gender')}) for {sport}! 🎉\nYou can now start chatting via this bot, type your messages below!"
-
-                )
-                return  # Exit the function after a match is found
-            else:
-                print("second match fail")
-
-        else:
-            print("first match fail")
-
-    # If no suitable match is found after iterating through all users
-    await context.bot.send_message(
-        chat_id=user_telegram_id,
-        text=f"No match found for {sport} at the moment. Please wait for a match!"
-    )
+            potential_skill_condition = (not potential_skill_levels or 
+                                       user_skill_level in potential_skill_levels)
+            
+            if not (potential_gender_condition and potential_age_condition and potential_skill_condition):
+                continue  # Skip if potential match wouldn't accept this user
+        
+        # Get potential match's data
+        potential_match_age = int(potential_match.get("age", 0))
+        potential_match_gender = potential_match.get("gender")
+        potential_match_sports = potential_match.get("sports", {})
+        potential_match_skill_level = potential_match_sports.get(sport, "Unknown")
+        
+        # Check if user would accept this match (only when using preferences)
+        if use_preferences:
+            gender_condition = (gender_preference in ["No preference", "Either"] or 
+                              potential_match_gender == gender_preference)
+            age_condition = (age_range[0] <= potential_match_age <= age_range[1])
+            skill_condition = (not skill_levels or 
+                             potential_match_skill_level in skill_levels)
+            location_condition = (not location_preferences or 
+                                len(location_preferences.intersection(potential_location_preferences)) > 0)
+            
+            if not (gender_condition and age_condition and skill_condition and location_condition):
+                continue  # Skip if user wouldn't accept this match
+        
+        # If we get here, we have a match!
+        match_document = {
+            "userAId": user_telegram_id,
+            "userBId": potential_match["telegramId"],
+            "userAUsername": user.get("username", "Unknown"),
+            "userBUsername": potential_match.get("username", "Unknown"),
+            "sport": sport,
+            "status": "active",
+            "usedSmartMatch": not use_preferences  # Track if this was a Smart-Match
+        }
+        matches_collection.insert_one(match_document)
+        
+        # Update both users
+        users_collection.update_many(
+            {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}},
+            {"$set": {"isMatched": True, "wantToBeMatched": False}}
+        )
+        
+        # Notify both users
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text=f"You have been matched with {potential_match.get('displayName', 'Unknown')} "
+                 f"({potential_match_age}, {potential_match_gender}) for {sport}! 🎉\n"
+                 f"You can now start chatting via this bot, type your messages below!" +
+                 ("\n\nNote: This match was made with relaxed preferences using Smart-Match." if not use_preferences else "")
+        )
+        
+        await context.bot.send_message(
+            chat_id=potential_match["telegramId"],
+            text=f"You have been matched with {user.get('displayName', 'Unknown')} "
+                 f"({user_age}, {user_gender}) for {sport}! 🎉\n"
+                 f"You can now start chatting via this bot, type your messages below!" +
+                 ("\n\nNote: This match was made with relaxed preferences using Smart-Match." if not use_preferences else "")
+        )
+        
+        return True
+    
+    return False
 
 # Handler for /endsearch command
 async def end_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -870,6 +938,8 @@ def setup_handlers(application):
 
     # Add the feedback conversation handler to the application
     application.add_handler(feedback_conv_handler)
+    # Add the Smart-Match callback handler
+    application.add_handler(CallbackQueryHandler(smart_match_response, pattern="^smartmatch_"))
 
 # Call the setup_handlers function to add the feedback conversation handler
 setup_handlers(application)
@@ -907,6 +977,9 @@ application.add_handler(CallbackQueryHandler(no_game_reason_response, pattern="^
 #/endsearch
 application.add_handler(CommandHandler('endsearch', end_search))
 application.add_handler(CallbackQueryHandler(end_search_callback, pattern="^endsearch_"))
+
+# smart match
+application.add_handler(CallbackQueryHandler(smart_match_response, pattern="^smartmatch_"))
 
 # Start the bot
 application.run_polling()
