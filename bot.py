@@ -33,6 +33,8 @@ feedback_collection = db["Feedback"]  # Use the collection "Feedback"
 
 # Create the Telegram Bot application
 application = Application.builder().token(TOKEN).build()
+application.job_queue = JobQueue()
+application.job_queue.set_application(application)
 
 # Mapping reason numbers to their full text descriptions
 NO_GAME_REASONS = {
@@ -320,7 +322,8 @@ async def try_find_match(user_telegram_id, sport, context, use_preferences=True)
         "telegramId": {"$ne": user_telegram_id},
         "wantToBeMatched": True,
         "selectedSport": sport,
-        "isMatched": False
+        "isMatched": False,
+        "smartMatch": True
     }
     
     for potential_match in users_collection.find(query):
