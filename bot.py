@@ -401,8 +401,7 @@ async def try_find_match(user_telegram_id, sport, context, use_preferences=True)
             chat_id=user_telegram_id,
             text=f"You have been matched with {potential_match.get('displayName', 'Unknown')} "
                  f"({potential_match_age}, {potential_match_gender}) for {sport}! 🎉\n"
-                 f"You can now start chatting via this bot, type your messages below!" +
-                 ("\n\nNote: This match was made with relaxed preferences using Smart-Match." if not use_preferences else "")
+                 f"You can now start chatting via this bot, type your messages below!"
         )
         
         await context.bot.send_message(
