@@ -43,7 +43,7 @@ NO_GAME_REASONS = {
     "5": "Others"
 }
 
-SMART_MATCH_WAIT_TIME = 60  # 1 hour in seconds
+SMART_MATCH_WAIT_TIME = 60  # 1 hour in seconds (this is in seconds)
 
 # Function to handle /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -283,6 +283,12 @@ async def smart_match_check(context: ContextTypes.DEFAULT_TYPE):
             text=f"Smart-Match is no longer active for {sport}."
         )
         return
+
+    # Notify user that preferences are being loosened!
+    await context.bot.send_message(
+        chat_id=user_telegram_id,
+        text=f"⏳ Couldn't find a strict match for {sport} after 1 hour. Now expanding search to all available players with Smart-Match ON!"
+    )
     
     # Try to find a match without considering preferences
     await try_find_match(user_telegram_id, sport, context, use_preferences=False)
