@@ -261,7 +261,7 @@ async def find_match(user_telegram_id, sport, context, is_smart_match):
         
         await context.bot.send_message(
             chat_id=user_telegram_id,
-            text=f"No match found yet. Will try again in 1 hour with relaxed preferences."
+            text=f"No match found for {sport} at the moment. Please hang tight! If we can’t find a suitable match within an hour, we’ll try again with more flexible preferences."
         )
 
 # Background job for Smart-Match check
