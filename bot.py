@@ -43,7 +43,7 @@ NO_GAME_REASONS = {
     "5": "Others"
 }
 
-SMART_MATCH_WAIT_TIME = 10  # 1 hour in seconds (this is in seconds)
+SMART_MATCH_WAIT_TIME = 60  # 1 hour in seconds (this is in seconds)
 
 # Function to handle /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -520,7 +520,7 @@ async def end_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Update users' isMatched status and wantToBeMatched status
     users_collection.update_many(
         {"telegramId": {"$in": [user_telegram_id, match_document["userAId"], match_document["userBId"]]}},
-        {"$set": {"isMatched": False, "wantToBeMatched": False}}  # Reset both flags
+        {"$set": {"isMatched": False, "wantToBeMatched": False, "smartMatch": False}}  # Reset both flags
     )
 
     # Send the match end message to both users
