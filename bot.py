@@ -399,7 +399,7 @@ async def try_find_match(user_telegram_id, sport, context, use_preferences=True)
         # Update both users
         users_collection.update_many(
             {"telegramId": {"$in": [user_telegram_id, potential_match["telegramId"]]}},
-            {"$set": {"isMatched": True, "wantToBeMatched": False}}
+            {"$set": {"isMatched": True, "wantToBeMatched": False, "smartMatch": False}}
         )
         
         # Notify both users
@@ -479,7 +479,7 @@ async def end_search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Update MongoDB - set wantToBeMatched to false
     users_collection.update_one(
         {"telegramId": user_telegram_id},
-        {"$set": {"wantToBeMatched": False}}
+        {"$set": {"wantToBeMatched": False, "smartMatch": False}}
     )
     
     await query.edit_message_text(f"OK, you have ended the search for {sport}.")
