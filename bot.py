@@ -261,7 +261,7 @@ async def find_match(user_telegram_id, sport, context, is_smart_match):
             name=f"smartmatch_{user_telegram_id}",
             data={
                 "sport": sport,
-                "start_time": datetime.datetime.now().
+                "start_time": datetime.datetime.now(),
                 "context": context  # ← Pass the context explicitly
             }
         )
