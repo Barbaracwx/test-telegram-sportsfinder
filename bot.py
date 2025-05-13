@@ -234,9 +234,6 @@ async def smart_match_response(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # Modified matching function
 async def find_match(user_telegram_id, sport, context, is_smart_match):
-
-    print(f"\n[DEBUG] Starting find_match for user {user_telegram_id}, sport {sport}, smart_match={is_smart_match}")  # <-- ADD THIS
-
     user = users_collection.find_one({"telegramId": user_telegram_id})
     
     if not user:
@@ -250,9 +247,6 @@ async def find_match(user_telegram_id, sport, context, is_smart_match):
     match_found = await try_find_match(user_telegram_id, sport, context, use_preferences=True)
     
     if not match_found and is_smart_match:
-
-        print(f"[SMART-MATCH] Scheduling check for user {user_telegram_id} in {SMART_MATCH_WAIT_TIME} sec")  # <-- ADD THIS
-
         # If no match found and Smart-Match is on, schedule a check for later
         context.job_queue.run_once(
             smart_match_check,
@@ -261,8 +255,7 @@ async def find_match(user_telegram_id, sport, context, is_smart_match):
             name=f"smartmatch_{user_telegram_id}",
             data={
                 "sport": sport,
-                "start_time": datetime.datetime.now(),
-                "passed_context": context  # Rename to avoid confusion
+                "start_time": datetime.datetime.now()
             }
         )
         
@@ -273,31 +266,15 @@ async def find_match(user_telegram_id, sport, context, is_smart_match):
 
 # Background job for Smart-Match check
 async def smart_match_check(context: ContextTypes.DEFAULT_TYPE):
-    print("Full job data:", job.data)  # Debug what's actually in the job
-    print("\n[DEBUG] smart_match_check triggered!")  # <-- ADD THIS
-
     job = context.job
     user_telegram_id = job.chat_id
     sport = job.data["sport"]
     start_time = job.data["start_time"]
-    passed_context = job.data.get("passed_context")  # Match the key used in storage
-
-
-    if not passed_context:
-        print("ERROR: No context passed to job")
-        return
-
-    print(f"[JOB DATA] User: {user_telegram_id}, Sport: {sport}")  # <-- ADD THIS
-    print(f"[CONTEXT CHECK] Current context valid: {hasattr(context, 'bot')}")  # <-- ADD THIS
-    print(f"[PASSED CONTEXT] Valid: {hasattr(passed_context, 'bot') if passed_context else 'None'}")
-
+    
     user = users_collection.find_one({"telegramId": user_telegram_id})
     
     if not user or not user.get("wantToBeMatched", False) or user.get("isMatched", False):
         return  # User is no longer looking for a match
-
-    # Ensure the bot can send messages
-    await try_find_match(user_telegram_id, sport, passed_context, use_preferences=False)
     
     # Check if user still has Smart-Match on
     if not user.get("smartMatch", False):
@@ -308,13 +285,13 @@ async def smart_match_check(context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Notify user that preferences are being loosened!
-    await passed_context.bot.send_message(
+    await context.bot.send_message(
         chat_id=user_telegram_id,
         text=f"⏳ Couldn't find a strict match for {sport} after 1 hour. Now expanding search to all available players with Smart-Match ON!"
     )
     
     # Try to find a match without considering preferences
-    await try_find_match(user_telegram_id, sport, passed_context, use_preferences=False)
+    await try_find_match(user_telegram_id, sport, context, use_preferences=False)
 
 # Unified matching function
 async def try_find_match(user_telegram_id, sport, context, use_preferences=True):
@@ -426,32 +403,20 @@ async def try_find_match(user_telegram_id, sport, context, use_preferences=True)
         )
         
         # Notify both users
-        try:
-            print(f"[DEBUG] Attempting to notify user {user_telegram_id} about match with {potential_match['telegramId']}")  # ADD THIS
-            await context.bot.send_message(
-                chat_id=user_telegram_id,
-                text=f"You have been matched with {potential_match.get('displayName', 'Unknown')} "
-                    f"({potential_match_age}, {potential_match_gender}) for {sport}! 🎉\n"
-                    f"You can now start chatting via this bot, type your messages below!"
-            )
-            print(f"[SUCCESS] Notification sent to user {user_telegram_id}")  # ADD THIS
-        except Exception as e:
-            print(f"[ERROR] Failed to notify user {user_telegram_id}: {str(e)}")  # ADD THIS
-            print(f"Context available: {hasattr(context, 'bot')}")  # ADD THIS
+        await context.bot.send_message(
+            chat_id=user_telegram_id,
+            text=f"You have been matched with {potential_match.get('displayName', 'Unknown')} "
+                 f"({potential_match_age}, {potential_match_gender}) for {sport}! 🎉\n"
+                 f"You can now start chatting via this bot, type your messages below!"
+        )
         
-        try:
-            print(f"[DEBUG] Attempting to notify user {potential_match['telegramId']} about match with {user_telegram_id}")  # ADD THIS
-            await context.bot.send_message(
-                chat_id=potential_match["telegramId"],
-                text=f"You have been matched with {user.get('displayName', 'Unknown')} "
-                     f"({user_age}, {user_gender}) for {sport}! 🎉\n"
-                     f"You can now start chatting via this bot, type your messages below!" +
-                     ("\n\nNote: This match was made with relaxed preferences using Smart-Match." if not use_preferences else "")
-            )
-            print(f"[SUCCESS] Notification sent to user {potential_match['telegramId']}")  # ADD THIS
-        except Exception as e:
-            print(f"[ERROR] Failed to notify user {potential_match['telegramId']}: {str(e)}")  # ADD THIS
-            print(f"Context available: {hasattr(context, 'bot')}")  # ADD THIS
+        await context.bot.send_message(
+            chat_id=potential_match["telegramId"],
+            text=f"You have been matched with {user.get('displayName', 'Unknown')} "
+                 f"({user_age}, {user_gender}) for {sport}! 🎉\n"
+                 f"You can now start chatting via this bot, type your messages below!" +
+                 ("\n\nNote: This match was made with relaxed preferences using Smart-Match." if not use_preferences else "")
+        )
         
         return True
     
