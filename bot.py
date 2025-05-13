@@ -262,7 +262,7 @@ async def find_match(user_telegram_id, sport, context, is_smart_match):
             data={
                 "sport": sport,
                 "start_time": datetime.datetime.now(),
-                "context": context  # ← Pass the context explicitly
+                "passed_context": context  # Rename to avoid confusion
             }
         )
         
@@ -273,17 +273,23 @@ async def find_match(user_telegram_id, sport, context, is_smart_match):
 
 # Background job for Smart-Match check
 async def smart_match_check(context: ContextTypes.DEFAULT_TYPE):
+    print("Full job data:", job.data)  # Debug what's actually in the job
     print("\n[DEBUG] smart_match_check triggered!")  # <-- ADD THIS
 
     job = context.job
     user_telegram_id = job.chat_id
     sport = job.data["sport"]
     start_time = job.data["start_time"]
-    original_context = job.data.get("original_context")
+    passed_context = job.data.get("passed_context")  # Match the key used in storage
+
+
+    if not passed_context:
+        print("ERROR: No context passed to job")
+        return
 
     print(f"[JOB DATA] User: {user_telegram_id}, Sport: {sport}")  # <-- ADD THIS
     print(f"[CONTEXT CHECK] Current context valid: {hasattr(context, 'bot')}")  # <-- ADD THIS
-    print(f"[ORIGINAL CONTEXT] Passed context valid: {original_context and hasattr(original_context, 'bot')}")  # <-- ADD THIS
+    print(f"[PASSED CONTEXT] Valid: {hasattr(passed_context, 'bot') if passed_context else 'None'}")
 
     user = users_collection.find_one({"telegramId": user_telegram_id})
     
@@ -291,7 +297,7 @@ async def smart_match_check(context: ContextTypes.DEFAULT_TYPE):
         return  # User is no longer looking for a match
 
     # Ensure the bot can send messages
-    await try_find_match(user_telegram_id, sport, bot_context, use_preferences=False)
+    await try_find_match(user_telegram_id, sport, passed_context, use_preferences=False)
     
     # Check if user still has Smart-Match on
     if not user.get("smartMatch", False):
@@ -302,13 +308,13 @@ async def smart_match_check(context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Notify user that preferences are being loosened!
-    await context.bot.send_message(
+    await passed_context.bot.send_message(
         chat_id=user_telegram_id,
         text=f"⏳ Couldn't find a strict match for {sport} after 1 hour. Now expanding search to all available players with Smart-Match ON!"
     )
     
     # Try to find a match without considering preferences
-    await try_find_match(user_telegram_id, sport, context, use_preferences=False)
+    await try_find_match(user_telegram_id, sport, passed_context, use_preferences=False)
 
 # Unified matching function
 async def try_find_match(user_telegram_id, sport, context, use_preferences=True):
